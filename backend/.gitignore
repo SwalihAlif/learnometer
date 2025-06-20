@@ -1,0 +1,91 @@
+# ========== PYTHON / DJANGO BACKEND ==========
+venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+db.sqlite3
+.env
+*.pot
+*.pyc
+*.pyo
+*.mo
+*.log
+*.coverage
+coverage.xml
+htmlcov/
+.DS_Store
+local_settings.py
+instance/
+media/
+staticfiles/
+
+# Django Migrations
+**/migrations/
+!*/migrations/__init__.py
+
+# Django Cache
+*.cache
+*.tmp
+
+# Gunicorn / uWSGI
+gunicorn.pid
+*.pid
+*.sock
+
+# ========== REACT VITE FRONTEND ==========
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/.cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ========== COMMON TOOLS ==========
+*.bak
+*.swp
+*.swo
+*.orig
+
+# ========== IDEs / TEXT EDITORS ==========
+.vscode/
+.idea/
+*.iml
+
+# ========== SYSTEM FILES ==========
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ========== TESTING ==========
+.tox/
+.pytest_cache/
+.nox/
+coverage/
+test-results/
+
+# ========== DOCKER ==========
+*.pid
+*.seed
+.env.docker
+docker-compose.override.yml
+
+# ========== GIT ==========
+*.rej
+*.patch
+*.diff
+
+# ========== CI/CD ==========
+.github/workflows/*.yml
+build/
+.env.production
+
+# ========== MONOREPO (OPTIONAL) ==========
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
