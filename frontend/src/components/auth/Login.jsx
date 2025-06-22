@@ -1,4 +1,6 @@
+import axiosInstance from '../../axios';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, BookOpen, TrendingUp, Target, Users, Chrome } from 'lucide-react';
 
 const LearnometerLogin = () => {
@@ -9,6 +11,7 @@ const LearnometerLogin = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -42,13 +45,44 @@ const LearnometerLogin = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      console.log('Login attempt:', formData);
-      // Handle login logic here
+const handleLogin = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
+
+  try {
+    const response = await axiosInstance.post('token/', {
+      email: formData.email,
+      password: formData.password
+    });
+
+    console.log('Login success:', response.data);
+
+    // Save tokens
+    localStorage.setItem('access', response.data.access);
+    localStorage.setItem('refresh', response.data.refresh);
+
+    // Save user info
+    localStorage.setItem('email', response.data.email);
+    localStorage.setItem('role', response.data.role);
+
+    // Redirect user based on role
+    const role = response.data.role;
+    if (role === 'Learner') {
+      navigate('/learner');
+    } else if (role === 'Mentor') {
+      navigate('/mentor');
+    } else if (role === 'Admin') {
+      navigate('/admin');
+    } else {
+      navigate('/'); // fallback
     }
-  };
+
+  } catch (error) {
+    console.error('Login failed:', error.response?.data || error.message);
+    alert('Login failed: Invalid credentials');
+  }
+};
+
 
   const handleGoogleSSO = () => {
     console.log('Google SSO login');
@@ -58,6 +92,13 @@ const LearnometerLogin = () => {
   const handleRegister = (role) => {
     console.log(`Register as ${role}`);
     // Handle registration redirect
+    if (role === 'mentor') {
+
+      navigate('/mregister');
+    }
+    else if (role === 'learner') {
+      navigate('/lregister');
+    }
   };
 
   return (

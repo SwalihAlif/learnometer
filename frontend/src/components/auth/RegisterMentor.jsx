@@ -1,5 +1,7 @@
+import axiosInstance from '../../axios';
 import React, { useState } from 'react';
 import { User, Upload, Clock, Globe, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const RegisterMentor = () => {
   const [formData, setFormData] = useState({
@@ -26,6 +28,10 @@ const RegisterMentor = () => {
     },
     agreeToTerms: false
   });
+
+  const navigate = useNavigate();
+
+  const [formErrors, setFormErrors] = useState({});
 
   const [dragActive, setDragActive] = useState(false);
 
@@ -124,11 +130,117 @@ const RegisterMentor = () => {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Handle form submission here
-  };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const data = new FormData();
+
+  // Required fields
+  data.append('email', formData.email);
+  data.append('password', formData.password);
+  data.append('confirm_password', formData.confirmPassword);
+  data.append('full_name', formData.fullName);
+
+  // Optional profile fields
+  data.append('phone', formData.phone || '');
+  data.append('bio', formData.bio || '');
+  data.append('experience_years', formData.experience || '');
+  data.append('linkedin_profile', formData.linkedinProfile || '');
+  data.append('portfolio_website', formData.portfolioWebsite || '');
+  data.append('learning_goals', formData.learningGoals || '');
+
+  // File upload
+  if (formData.profilePicture) {
+    data.append('profile_picture', formData.profilePicture);
+  }
+
+  // Array fields
+  formData.expertiseCategory.forEach((cat) => {
+    data.append('preferred_categories', cat);
+  });
+
+  formData.languages.forEach((lang) => {
+    data.append('languages_known', lang);
+  });
+
+  // Availability as JSON string
+  data.append('availability_schedule', JSON.stringify(formData.availability));
+
+  const errors = {};
+
+if (!formData.fullName) errors.fullName = "Full Name is required";
+if (!formData.email) errors.email = "Email is required";
+else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Invalid email format";
+
+if (!formData.password) errors.password = "Password is required";
+if (!formData.confirmPassword) errors.confirmPassword = "Please confirm your password";
+else if (formData.password !== formData.confirmPassword)
+  errors.confirmPassword = "Passwords do not match";
+
+if (!formData.phone) errors.phone = "Phone number is required";
+
+if (!formData.expertiseCategory.length)
+  errors.expertiseCategory = "Select at least one expertise category";
+
+if (!formData.languages.length)
+  errors.languages = "Select at least one language";
+
+if (!formData.agreeToTerms)
+  errors.agreeToTerms = "You must agree to the terms and conditions";
+
+// Stop submission if any errors exist
+if (Object.keys(errors).length > 0) {
+  setFormErrors(errors);
+  return;
+}
+
+
+  try {
+    const response = await axiosInstance.post('register/mentor/', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    // ✅ Success alert here
+    alert("Mentor registered successfully!");
+
+    // ✅ Optional: clear form
+    setFormData({
+      fullName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      phone: '',
+      experience: '',
+      profilePicture: null,
+      expertiseCategory: [],
+      languages: [],
+      bio: '',
+      linkedinProfile: '',
+      portfolioWebsite: '',
+      availability: {
+        monday: { startTime: '', endTime: '' },
+        tuesday: { startTime: '', endTime: '' },
+        wednesday: { startTime: '', endTime: '' },
+        thursday: { startTime: '', endTime: '' },
+        friday: { startTime: '', endTime: '' },
+        saturday: { startTime: '', endTime: '' },
+        sunday: { startTime: '', endTime: '' },
+      },
+      agreeToTerms: false,
+    });
+
+    // ✅ Optional: redirect
+    navigate('/mentor'); // if using React Router
+    console.log('Mentor registered successfully:', response.data);
+    // Optionally redirect or show success message
+  } catch (error) {
+    console.error('Registration failed:', error.response?.data || error.message);
+    // Optionally show error to user
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-emerald-50">
@@ -173,6 +285,9 @@ const RegisterMentor = () => {
                   className="w-full px-4 py-3 border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
                   placeholder="Enter your full name"
                 />
+                {formErrors.fullName && (
+                  <p className="text-red-600 text-sm mt-1">{formErrors.fullName}</p>
+                )}
               </div>
               
               <div>
@@ -188,6 +303,9 @@ const RegisterMentor = () => {
                   className="w-full px-4 py-3 border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
                   placeholder="Enter your email address"
                 />
+                {formErrors.email && (
+                  <p className="text-red-600 text-sm mt-1">{formErrors.email}</p>
+                )}
               </div>
               
               <div>
@@ -203,6 +321,9 @@ const RegisterMentor = () => {
                   className="w-full px-4 py-3 border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
                   placeholder="Create a secure password"
                 />
+                {formErrors.password && (
+                  <p className="text-red-600 text-sm mt-1">{formErrors.password}</p>
+                )}
               </div>
               
               <div>
@@ -218,6 +339,9 @@ const RegisterMentor = () => {
                   className="w-full px-4 py-3 border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
                   placeholder="Confirm your password"
                 />
+                {formErrors.confirmPassword && (
+                  <p className="text-red-600 text-sm mt-1">{formErrors.confirmPassword}</p>
+                )}
               </div>
               
               <div>
@@ -233,6 +357,9 @@ const RegisterMentor = () => {
                   className="w-full px-4 py-3 border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
                   placeholder="Enter your phone number"
                 />
+                {formErrors.phone && (
+  <p className="text-red-600 text-sm mt-1">{formErrors.phone}</p>
+)}
               </div>
               
               <div>
@@ -249,6 +376,9 @@ const RegisterMentor = () => {
                   className="w-full px-4 py-3 border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
                   placeholder="Years of experience"
                 />
+                {formErrors.experience && (
+  <p className="text-red-600 text-sm mt-1">{formErrors.experience}</p>
+)}
               </div>
             </div>
           </div>
@@ -345,6 +475,10 @@ const RegisterMentor = () => {
                     ))}
                   </div>
                 )}
+                 {/* ✅ Error Message */}
+    {formErrors.expertiseCategory && (
+      <p className="text-red-600 text-sm mt-2">{formErrors.expertiseCategory}</p>
+    )}
               </div>
               
               <div>
@@ -385,6 +519,10 @@ const RegisterMentor = () => {
                     ))}
                   </div>
                 )}
+                {/* ✅ Error Message */}
+    {formErrors.languages && (
+      <p className="text-red-600 text-sm mt-2">{formErrors.languages}</p>
+    )}
               </div>
               
               <div>
@@ -496,6 +634,9 @@ const RegisterMentor = () => {
                 </a>{' '}
                 of Learnometer.
               </label>
+              {formErrors.agreeToTerms && (
+  <p className="text-red-600 text-sm mt-1">{formErrors.agreeToTerms}</p>
+)}
             </div>
           </div>
 

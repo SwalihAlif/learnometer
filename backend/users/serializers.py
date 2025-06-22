@@ -8,6 +8,20 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['role'] = user.role.name if user.role else None
         return token
 
+    def validate(self, attrs):
+
+        # Check if user is active (OTP verified)
+        if not self.user.is_active:
+            raise serializers.ValidationError("Your account is not verified. Please verify the OTP sent to your email.")
+        
+        data = super().validate(attrs)
+
+        # Add extra fields to the response data
+        data['email'] = self.user.email
+        data['role'] = self.user.role.name if self.user.role else None
+
+        return data
+
 
 
 
@@ -76,3 +90,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+class OTPVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField()

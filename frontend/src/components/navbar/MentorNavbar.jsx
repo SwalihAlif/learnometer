@@ -1,6 +1,20 @@
 import { BellIcon, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const MentorNavbar = () => {
+
+   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear stored user data
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
+    localStorage.removeItem('email');
+    localStorage.removeItem('role');
+
+    // Redirect to login page
+    navigate('/');
+  };
   return (
     <nav className="w-full h-16 flex items-center justify-between px-6 border-b border-teal-200" style={{ backgroundColor: '#ECFDF5', color: '#064E3B' }}>
       <div className="flex items-center">
@@ -29,7 +43,8 @@ const MentorNavbar = () => {
           M
         </div>
         
-        <button className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-amber-600" style={{ backgroundColor: '#F59E0B', color: '#064E3B' }}>
+        <button onClick={handleLogout} 
+        className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-amber-600" style={{ backgroundColor: '#F59E0B', color: '#064E3B' }}>
           Logout
         </button>
       </div>

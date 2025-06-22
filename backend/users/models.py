@@ -76,3 +76,27 @@ class UserProfile(models.Model):
         verbose_name_plural = "User Profiles"
 
 
+
+# models.py
+import random
+from datetime import timedelta
+from django.utils import timezone
+from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class OTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=5)
+    
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = f"{random.randint(100000, 999999)}"
+        super().save(*args, **kwargs)
+
