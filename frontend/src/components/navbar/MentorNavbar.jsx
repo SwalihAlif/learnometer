@@ -13,7 +13,7 @@ const MentorNavbar = () => {
     localStorage.removeItem('role');
 
     // Redirect to login page
-    navigate('/');
+    navigate('/login');
   };
   return (
     <nav className="w-full h-16 flex items-center justify-between px-6 border-b border-teal-200" style={{ backgroundColor: '#ECFDF5', color: '#064E3B' }}>

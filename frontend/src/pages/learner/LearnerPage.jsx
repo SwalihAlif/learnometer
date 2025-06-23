@@ -1,5 +1,5 @@
 import LearnerLayout from '../../layouts/LearnerLayout';
-import LearnerDashboard from './LearnerDashboard';
+import LearnerDashboard from './LearnerDashboard'
 
 export default function LearnerPage() {
   return (

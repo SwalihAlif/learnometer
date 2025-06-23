@@ -7,6 +7,8 @@ from .models import User, Role, OTP
 from .serializers import UserRegisterSerializer, MyTokenObtainPairSerializer, OTPVerifySerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .utils import send_otp_email
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -22,9 +24,10 @@ class RegisterMentorView(generics.CreateAPIView):
         return context
     
     def perform_create(self, serializer):
-        user = serializer.save(is_active=False)  # Deactivate until OTP verified
-        otp = OTP.objects.create(user=user)
-        send_otp_email(user.email, otp.code)
+        with transaction.atomic():
+            user = serializer.save(is_active=False)  # Deactivate until OTP verified
+            otp = OTP.objects.create(user=user)
+            send_otp_email(user.email, otp.code)
 
 class RegisterLearnerView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -37,9 +40,10 @@ class RegisterLearnerView(generics.CreateAPIView):
         return context
     
     def perform_create(self, serializer):
-        user = serializer.save(is_active=False)  # Deactivate until OTP verified
-        otp = OTP.objects.create(user=user)
-        send_otp_email(user.email, otp.code)
+        with transaction.atomic():
+            user = serializer.save(is_active=False)  # Deactivate until OTP verified
+            otp = OTP.objects.create(user=user)
+            send_otp_email(user.email, otp.code)
 
 class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
@@ -48,7 +52,7 @@ class OTPVerifyView(APIView):
         serializer = OTPVerifySerializer(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data['email']
-            code = serializer.validated_data['code']
+            code = serializer.validated_data['code'] 
             try:
                 user = User.objects.get(email=email)
                 otp = OTP.objects.filter(user=user, code=code, is_verified=False).latest('created_at')
@@ -60,9 +64,11 @@ class OTPVerifyView(APIView):
                 otp.save()
                 user.is_active = True
                 user.save()
-                return Response({"detail": "OTP verified successfully."})
-            except Exception:
-                return Response({"error": "Invalid OTP or user."}, status=400)
+                return Response({"message": "OTP verified successfully."})
+            except OTP.DoesNotExist:
+                return Response({"error": "Invalid or expired OTP."}, status=400)
+            except User.DoesNotExist:
+                return Response({"error": "User with this email does not exist."}, status=400)
         return Response(serializer.errors, status=400)
 
 class ResendOTPView(APIView):

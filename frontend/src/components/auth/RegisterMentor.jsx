@@ -231,8 +231,13 @@ if (Object.keys(errors).length > 0) {
       agreeToTerms: false,
     });
 
-    // ✅ Optional: redirect
-    navigate('/mentor'); // if using React Router
+    navigate('/verify-otp', {
+  state: {
+    email: formData.email,
+    role: 'mentor' 
+  }
+});
+
     console.log('Mentor registered successfully:', response.data);
     // Optionally redirect or show success message
   } catch (error) {

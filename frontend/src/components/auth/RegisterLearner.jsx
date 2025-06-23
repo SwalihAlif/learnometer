@@ -1,5 +1,7 @@
+import axiosInstance from '../../axios';
 import React, { useState } from 'react';
 import { User, Mail, Phone, Upload, ChevronDown, BookOpen, Target, Globe, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const LearnerRegistration = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +16,8 @@ const LearnerRegistration = () => {
     languages: [],
     agreeToTerms: false
   });
+
+  const navigate = useNavigate();
 
   const [showOtpSection, setShowOtpSection] = useState(false);
   const [otp, setOtp] = useState('');
@@ -88,28 +92,86 @@ const LearnerRegistration = () => {
     }));
   };
 
-  const handleRegister = () => {
-    // Basic validation
-    if (!formData.fullName || !formData.email || !formData.password || !formData.phoneNumber) {
-      alert('Please fill in all required fields');
-      return;
-    }
-    
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
-      return;
-    }
-    
-    if (!formData.agreeToTerms) {
-      alert('Please agree to the Terms and Conditions');
-      return;
-    }
+  const handleRegister = async (e) => {
+  e.preventDefault();
 
-    // Simulate sending OTP
-    setOtpSent(true);
-    setShowOtpSection(true);
-    alert('OTP has been sent to your email and phone number!');
-  };
+  // Destructure for easy validation
+  const {
+    fullName,
+    email,
+    password,
+    confirmPassword,
+    phoneNumber,
+    profilePicture,
+    learningCategories,
+    learningGoals,
+    languages,
+    agreeToTerms
+  } = formData;
+
+  // Basic field validation
+  if (!fullName || !email || !password || !confirmPassword || !phoneNumber || !learningGoals) {
+    alert('Please fill in all required fields.');
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    alert('Passwords do not match.');
+    return;
+  }
+
+  if (!agreeToTerms) {
+    alert('You must agree to the terms and conditions.');
+    return;
+  }
+
+  if (learningCategories.length === 0) {
+    alert('Please select at least one learning category.');
+    return;
+  }
+
+  if (languages.length === 0) {
+    alert('Please select at least one language.');
+    return;
+  }
+
+  // Prepare form data
+  const data = new FormData();
+  data.append('full_name', fullName);
+  data.append('email', email);
+  data.append('password', password);
+  data.append('confirm_password', confirmPassword);
+  data.append('phone_number', phoneNumber);
+  data.append('learning_goals', learningGoals);
+  data.append('learning_categories', JSON.stringify(learningCategories));
+  data.append('languages', JSON.stringify(languages));
+  if (profilePicture) {
+    data.append('profile_picture', profilePicture);
+  }
+
+  try {
+    const response = await axiosInstance.post('register/learner/', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    console.log('Learner registered successfully:', response.data);
+
+    // Redirect to OTP verification with email and role
+    navigate('/verify-otp', {
+      state: {
+        email,
+        role: 'learner'
+      }
+    });
+
+  } catch (error) {
+    console.error('Registration failed:', error.response?.data || error.message);
+    alert('Registration failed. Please check your inputs or try again.');
+  }
+};
+
 
   const handleOtpVerification = (e) => {
     e.preventDefault();

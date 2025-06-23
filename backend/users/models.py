@@ -28,7 +28,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -53,19 +53,19 @@ class UserProfile(models.Model):
     # Shared fields
     full_name = models.CharField(max_length=100)
     profile_picture = CloudinaryField('image', blank=True, null=True)
-    bio = models.TextField(blank=True)
-    contact_number = models.CharField(max_length=20, blank=True)
+    bio = models.TextField(blank=True, null=True)
+    contact_number = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Learner-specific fields
     preferred_categories = models.JSONField(blank=True, default=list)  # List of categories
     languages_known = models.JSONField(blank=True, default=list)       # List of languages
-    learning_goals = models.TextField(blank=True)
+    learning_goals = models.TextField(blank=True, null=True)
 
     # Mentor-specific fields
     experience_years = models.PositiveIntegerField(blank=True, null=True)
-    linkedin_profile = models.URLField(blank=True)
-    portfolio_website = models.URLField(blank=True)
+    linkedin_profile = models.URLField(blank=True, null=True)
+    portfolio_website = models.URLField(blank=True, null=True)
     availability_schedule = models.JSONField(blank=True, null=True)  # { day: {start, end}, ... }
 
     def __str__(self):
