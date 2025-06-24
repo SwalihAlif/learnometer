@@ -9,3 +9,16 @@ class MainTopic(models.Model):
     
     def __str__(self):
         return self.title
+    
+
+
+class SubTopic(models.Model):
+    main_topic = models.ForeignKey('MainTopic', on_delete=models.CASCADE, related_name='subtopics')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.title} ({self.main_topic.title})"
+

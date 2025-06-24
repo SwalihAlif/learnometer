@@ -1,9 +1,9 @@
 from django.shortcuts import render
 
 # Create your views here.
-from rest_framework import generics
-from .models import MainTopic
-from .serializers import MainTopicSerializer
+from rest_framework import generics, permissions
+from .models import MainTopic, SubTopic
+from .serializers import MainTopicSerializer, SubTopicSerializer
 from rest_framework.permissions import IsAuthenticated
 
 class MainTopicListCreateView(generics.ListCreateAPIView):
@@ -14,12 +14,29 @@ class MainTopicListCreateView(generics.ListCreateAPIView):
         course_id = self.request.query_params.get('course_id')
         return MainTopic.objects.filter(course_id=course_id)
 
-from rest_framework import generics
-from .models import MainTopic
-from .serializers import MainTopicSerializer
-from rest_framework.permissions import IsAuthenticated
+
 
 class MainTopicRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = MainTopic.objects.all()
     serializer_class = MainTopicSerializer
     permission_classes = [IsAuthenticated]
+
+
+
+# List + Create
+class SubTopicListCreateView(generics.ListCreateAPIView):
+    serializer_class = SubTopicSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        main_topic_id = self.request.query_params.get('main_topic_id')
+        return SubTopic.objects.filter(main_topic_id=main_topic_id)
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+# Retrieve + Update + Delete
+class SubTopicDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = SubTopic.objects.all()
+    serializer_class = SubTopicSerializer
+    permission_classes = [permissions.IsAuthenticated]

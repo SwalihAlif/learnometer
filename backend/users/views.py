@@ -45,14 +45,25 @@ class RegisterLearnerView(generics.CreateAPIView):
             otp = OTP.objects.create(user=user)
             send_otp_email(user.email, otp.code)
 
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+from django.contrib.auth import get_user_model
+from .models import OTP
+from .serializers import OTPVerifySerializer
+
+User = get_user_model()
+
 class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = OTPVerifySerializer(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data['email']
-            code = serializer.validated_data['code'] 
+            code = serializer.validated_data['code']
+
             try:
                 user = User.objects.get(email=email)
                 otp = OTP.objects.filter(user=user, code=code, is_verified=False).latest('created_at')
@@ -60,16 +71,30 @@ class OTPVerifyView(APIView):
                 if otp.is_expired():
                     return Response({"error": "OTP has expired. Please request a new one."}, status=400)
 
+                # Mark OTP and user as verified/active
                 otp.is_verified = True
                 otp.save()
                 user.is_active = True
                 user.save()
-                return Response({"message": "OTP verified successfully."})
+
+                # ✅ Generate JWT tokens
+                refresh = RefreshToken.for_user(user)
+
+                return Response({
+                    "message": "OTP verified successfully.",
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                    "email": user.email,
+                    "role": user.role.name if user.role else None,
+                })
+
             except OTP.DoesNotExist:
                 return Response({"error": "Invalid or expired OTP."}, status=400)
             except User.DoesNotExist:
                 return Response({"error": "User with this email does not exist."}, status=400)
+
         return Response(serializer.errors, status=400)
+
 
 class ResendOTPView(APIView):
     permission_classes = [AllowAny]
