@@ -1,24 +1,10 @@
-import React, { useState } from 'react';
+import axiosInstance from '../../axios';
+import { useEffect, useState } from 'react';
 import { BookOpen, Plus, Edit, Trash2, Users, Eye, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const LearnerMyCourses = () => {
-  const [courses, setCourses] = useState([
-    {
-      id: 1,
-      title: "Machine Learning Fundamentals",
-      category: "Computer Science",
-      description: "A comprehensive introduction to machine learning algorithms, data preprocessing, and model evaluation techniques.",
-      createdDate: "2024-01-15"
-    },
-    {
-      id: 2,
-      title: "Digital Marketing Strategy",
-      category: "Marketing",
-      description: "Learn modern digital marketing techniques including SEO, social media marketing, and content strategy.",
-      createdDate: "2024-02-03"
-    }
-  ]);
-
+  const [courses, setCourses] = useState([]);
   const [newCourse, setNewCourse] = useState({
     title: '',
     category: '',
@@ -26,17 +12,53 @@ const LearnerMyCourses = () => {
   });
 
   const [categorySearch, setCategorySearch] = useState('');
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
 
-  // Mock category suggestions - can be replaced with API call
-  const categorySuggestions = [
-    'Computer Science', 'Marketing', 'Design', 'Business', 'Mathematics',
-    'Science', 'Languages', 'Arts', 'Engineering', 'Health & Medicine'
-  ];
+  const [editingCourseId, setEditingCourseId] = useState(null);
+  const [editedCourse, setEditedCourse] = useState({
+    title: '',
+    description: ''
+  });
+  const navigate = useNavigate();
 
-  const filteredCategories = categorySuggestions.filter(cat =>
-    cat.toLowerCase().includes(categorySearch.toLowerCase())
-  );
+  // Fetch existing courses on page load
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await axiosInstance.get('courses/');
+        // Extract the array from 'results' 
+        setCourses(response.data.results);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+
+
+  // Handle live category suggestions from backend
+  const handleCategoryChange = async (value) => {
+    setCategorySearch(value);
+    setNewCourse(prev => ({ ...prev, category: value }));
+    setShowCategorySuggestions(true);
+
+    try {
+      const res = await axiosInstance.get(`courses/category-suggestions/?q=${value}`);
+      setFilteredCategories(res.data); // assumes backend returns a list of strings
+    } catch (err) {
+      console.error('Error fetching category suggestions:', err);
+    }
+  };
+
+  const selectCategory = (name) => {
+    setCategorySearch(name);
+    setNewCourse(prev => ({ ...prev, category: name }));
+    setShowCategorySuggestions(false);
+  };
+
 
   const handleInputChange = (field, value) => {
     setNewCourse(prev => ({
@@ -45,40 +67,71 @@ const LearnerMyCourses = () => {
     }));
   };
 
-  const handleCategoryChange = (value) => {
-    setCategorySearch(value);
-    setNewCourse(prev => ({
-      ...prev,
-      category: value
-    }));
-    setShowCategorySuggestions(true);
-  };
-
-  const selectCategory = (category) => {
-    setCategorySearch(category);
-    setNewCourse(prev => ({
-      ...prev,
-      category: category
-    }));
-    setShowCategorySuggestions(false);
-  };
-
-  const handleCreateCourse = () => {
+  const handleCreateCourse = async () => {
     if (newCourse.title && newCourse.category && newCourse.description) {
-      const course = {
-        id: courses.length + 1,
-        ...newCourse,
-        createdDate: new Date().toISOString().split('T')[0]
-      };
-      setCourses(prev => [...prev, course]);
-      setNewCourse({ title: '', category: '', description: '' });
-      setCategorySearch('');
-      setShowCategorySuggestions(false);
+      try {
+        const payload = {
+          title: newCourse.title,
+          description: newCourse.description,
+          category_name: newCourse.category.trim().toLowerCase(), // ✅ match serializer
+        };
+
+        console.log("Sending:", payload);
+
+        const res = await axiosInstance.post('courses/', payload);
+
+        setCourses(prev => [...prev, res.data]);
+        setNewCourse({ title: '', category: '', description: '' });
+        setCategorySearch('');
+        setShowCategorySuggestions(false);
+      } catch (err) {
+        console.error('Error creating course:', err);
+        if (err.response) {
+          console.error('Backend error response:', err.response.data);
+        }
+      }
     }
   };
 
-  const handleDeleteCourse = (courseId) => {
-    setCourses(prev => prev.filter(course => course.id !== courseId));
+  const handleEditClick = (course) => {
+    setEditingCourseId(course.id);
+    setEditedCourse({
+      title: course.title,
+      description: course.description
+    });
+  };
+
+ const handleUpdateCourse = async (id) => {
+  try {
+    const categoryName = courses.find(c => c.id === id)?.category?.name || '';
+    
+    const res = await axiosInstance.put(`courses/${id}/`, {
+      title: editedCourse.title,
+      description: editedCourse.description,
+      category_name: categoryName  // ✅ include this!
+    });
+
+    setCourses((prev) =>
+      prev.map((c) => (c.id === id ? res.data : c))
+    );
+    setEditingCourseId(null);
+  } catch (err) {
+    console.error('Error updating course:', err);
+    if (err.response) {
+      console.error('Backend response:', err.response.data);
+    }
+  }
+};
+
+
+
+  const handleDeleteCourse = async (courseId) => {
+    try {
+      await axiosInstance.delete(`courses/${courseId}/`);
+      setCourses(prev => prev.filter(course => course.id !== courseId));
+    } catch (err) {
+      console.error('Error deleting course:', err);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -89,19 +142,22 @@ const LearnerMyCourses = () => {
     });
   };
 
+  const handleViewMainTopics = (courseId) => {
+  navigate(`/learner/main-topics/${courseId}`);
+};
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-<div className="mb-8 bg-[#4F46E5] px-6 py-8 rounded-lg shadow-md">
-  <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-    My Courses
-  </h1>
-  <p className="text-[#F9FAFB] text-lg">
-    Create, manage, and connect with mentors for your personalized learning journey
-  </p>
-</div>
-
+        <div className="mb-8 bg-[#4F46E5] px-6 py-8 rounded-lg shadow-md">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+            My Courses
+          </h1>
+          <p className="text-[#F9FAFB] text-lg">
+            Create, manage, and connect with mentors for your personalized learning journey
+          </p>
+        </div>
 
         {/* Create New Course Section */}
         <div className="bg-[#F9FAFB] rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
@@ -109,7 +165,7 @@ const LearnerMyCourses = () => {
             <Plus className="w-5 h-5 mr-2 text-[#4F46E5]" />
             Create a New Course
           </h2>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Course Title */}
             <div>
@@ -140,7 +196,7 @@ const LearnerMyCourses = () => {
                   placeholder="Search or type category"
                 />
                 <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-400" />
-                
+
                 {/* Category Suggestions Dropdown */}
                 {showCategorySuggestions && filteredCategories.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -192,8 +248,7 @@ const LearnerMyCourses = () => {
             All My Courses
           </h2>
 
-          {courses.length === 0 ? (
-            /* Empty State */
+          {Array.isArray(courses) && courses.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
               <div className="w-16 h-16 bg-[#F9FAFB] rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-gray-400" />
@@ -201,63 +256,102 @@ const LearnerMyCourses = () => {
               <p className="text-gray-500 text-lg">You haven't created any courses yet.</p>
             </div>
           ) : (
-            /* Courses Grid */
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {courses.map((course) => (
-                <div
-                  key={course.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                >
-                  {/* Course Title */}
-                  <h3 className="text-xl font-bold text-[#1E1B4B] mb-3 line-clamp-2">
-                    {course.title}
-                  </h3>
+              {Array.isArray(courses) &&
+                courses.map((course) => (
+                  <div
+                    key={course.id}
+                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                  >
+                    {/* Conditional rendering for edit mode */}
+                    {editingCourseId === course.id ? (
+                      <div className="space-y-2 mb-4">
+                        <input
+                          type="text"
+                          value={editedCourse.title}
+                          onChange={(e) =>
+                            setEditedCourse((prev) => ({ ...prev, title: e.target.value }))
+                          }
+                          className="w-full border border-gray-300 rounded px-2 py-1"
+                          placeholder="Title"
+                        />
+                        <textarea
+                          value={editedCourse.description}
+                          onChange={(e) =>
+                            setEditedCourse((prev) => ({ ...prev, description: e.target.value }))
+                          }
+                          className="w-full border border-gray-300 rounded px-2 py-1"
+                          placeholder="Description"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleUpdateCourse(course.id)}
+                            className="bg-green-600 text-white px-3 py-1 rounded"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingCourseId(null)}
+                            className="bg-gray-400 text-white px-3 py-1 rounded"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <h3 className="text-xl font-bold text-[#1E1B4B] mb-3 line-clamp-2">
+                          {course.title}
+                        </h3>
+                        <p className="text-gray-600 mb-4 line-clamp-3">{course.description}</p>
+                      </>
+                    )}
 
-                  {/* Description */}
-                  <p className="text-gray-600 mb-4 line-clamp-3">
-                    {course.description}
-                  </p>
+                    <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
+                      <span>Created: {formatDate(course.created_at)}</span>
+                      <span className="bg-[#F9FAFB] px-2 py-1 rounded text-[#4F46E5] font-medium">
+                        {course.category?.name}
+                      </span>
+                    </div>
 
-                  {/* Date and Category */}
-                  <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                    <span>Created: {formatDate(course.createdDate)}</span>
-                    <span className="bg-[#F9FAFB] px-2 py-1 rounded text-[#4F46E5] font-medium">
-                      {course.category}
-                    </span>
-                  </div>
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        onClick={() => handleEditClick(course)}
+                        className="flex-1 bg-[#4F46E5] text-white px-3 py-2 rounded-lg hover:bg-[#4338CA] transition-colors text-sm font-medium flex items-center justify-center"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </button>
 
-                  {/* Action Buttons Row */}
-                  <div className="flex gap-2 mb-3">
-                    <button className="flex-1 bg-[#4F46E5] text-white px-3 py-2 rounded-lg hover:bg-[#4338CA] transition-colors text-sm font-medium flex items-center justify-center">
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </button>
+                      <button
+                        onClick={() => handleDeleteCourse(course.id)}
+                        className="flex-1 bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center justify-center"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </button>
+                      <button className="flex-1 bg-[#FACC15] text-[#1E1B4B] px-3 py-2 rounded-lg hover:bg-[#EAB308] transition-colors text-sm font-medium flex items-center justify-center">
+                        <Users className="w-4 h-4 mr-1" />
+                        View Mentors
+                      </button>
+                    </div>
+
                     <button 
-                      onClick={() => handleDeleteCourse(course.id)}
-                      className="flex-1 bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center justify-center"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Delete
-                    </button>
-                    <button className="flex-1 bg-[#FACC15] text-[#1E1B4B] px-3 py-2 rounded-lg hover:bg-[#EAB308] transition-colors text-sm font-medium flex items-center justify-center">
-                      <Users className="w-4 h-4 mr-1" />
-                      View Mentors
+                    onClick={() => handleViewMainTopics(course.id)}
+                    className="w-full border-2 border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg hover:bg-[#4F46E5] hover:text-white transition-colors text-sm font-medium flex items-center justify-center">
+                      <Eye className="w-4 h-4 mr-2" />
+                      View Main Topics
                     </button>
                   </div>
-
-                  {/* View Main Topics Button */}
-                  <button className="w-full border-2 border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg hover:bg-[#4F46E5] hover:text-white transition-colors text-sm font-medium flex items-center justify-center">
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Main Topics
-                  </button>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
+
 };
 
 export default LearnerMyCourses;

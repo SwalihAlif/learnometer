@@ -50,7 +50,7 @@ const handleLogin = async (e) => {
   if (!validateForm()) return;
 
   try {
-    const response = await axiosInstance.post('token/', {
+    const response = await axiosInstance.post('users/token/', {
       email: formData.email,
       password: formData.password
     });

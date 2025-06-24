@@ -57,7 +57,7 @@ const VerifyOTP = () => {
     setSuccess('');
 
       try {
-          const res = await axiosInstance.post('verify-otp/', {
+          const res = await axiosInstance.post('users/verify-otp/', {
               email: email.trim(),
               code: otp.trim(),
           });
@@ -88,7 +88,7 @@ const VerifyOTP = () => {
     setSuccess('');
 
     try {
-      const res = await axiosInstance.post('resend-otp/', { email: email.trim() });
+      const res = await axiosInstance.post('users/resend-otp/', { email: email.trim() });
       setSuccess(res.data.message || 'OTP resent successfully!');
       setCountdown(60);
       setShowResendButton(false);

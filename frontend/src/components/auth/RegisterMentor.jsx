@@ -196,7 +196,7 @@ if (Object.keys(errors).length > 0) {
 
 
   try {
-    const response = await axiosInstance.post('register/mentor/', data, {
+    const response = await axiosInstance.post('users/register/mentor/', data, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

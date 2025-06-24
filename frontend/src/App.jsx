@@ -31,7 +31,7 @@ export default function App() {
         <Route path="/learner" element={<LearnerLayout />}>
           <Route index element={<LearnerDashboard />} /> {/* /learner */}
           <Route path="my-courses" element={<LearnerMyCourses />} />
-          <Route path="main-topics" element={<MainTopics />} />
+          <Route path="main-topics/:courseId" element={<MainTopics />} />
           <Route path="sub-topics" element={<SubTopics/>} />
         </Route>
 

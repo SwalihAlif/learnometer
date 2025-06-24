@@ -150,7 +150,7 @@ const LearnerRegistration = () => {
   }
 
   try {
-    const response = await axiosInstance.post('register/learner/', data, {
+    const response = await axiosInstance.post('users/register/learner/', data, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

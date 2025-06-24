@@ -12,49 +12,58 @@ import {
   Users
 } from 'lucide-react';
 
+import { NavLink } from 'react-router-dom';
+
 const LearnerSidebar = () => {
   const navItems = [
-    { name: 'Dashboard', icon: LayoutDashboard },
-    { name: 'My Courses', icon: BookOpen },
-    { name: 'Assignments', icon: FileQuestion },
-    { name: 'Schedule', icon: Calendar },
-    { name: 'Video Library', icon: Video },
-    { name: 'Favorites', icon: Heart },
-    { name: 'Progress', icon: Target },
-    { name: 'Premium', icon: Crown },
-    { name: 'Messages', icon: MessageCircle },
-    { name: 'Downloads', icon: Download }
+    { name: 'Dashboard', icon: LayoutDashboard, path: '' },
+    { name: 'My Courses', icon: BookOpen, path: 'my-courses' },
+    { name: 'Assignments', icon: FileQuestion, path: 'assignments' },
+    { name: 'Schedule', icon: Calendar, path: 'schedule' },
+    { name: 'Video Library', icon: Video, path: 'videos' },
+    { name: 'Favorites', icon: Heart, path: 'favorites' },
+    { name: 'Progress', icon: Target, path: 'progress' },
+    { name: 'Premium', icon: Crown, path: 'premium' },
+    { name: 'Messages', icon: MessageCircle, path: 'messages' },
+    { name: 'Downloads', icon: Download, path: 'downloads' }
   ];
 
   return (
     <aside className="w-64 h-full overflow-y-auto bg-gradient-to-b from-[#4F46E5] to-[#3730A3]">
-
-      
       <nav className="p-4">
         <ul className="space-y-2">
           {navItems.map((item, index) => {
             const Icon = item.icon;
             return (
               <li key={index}>
-                <a
-                  href="#"
-                  className="flex items-center px-3 py-2 rounded-lg hover:bg-white/10 transition-colors duration-200"
+                <NavLink
+                  to={`/learner/${item.path}`}
+                  end={item.path === ''}
+                  className={({ isActive }) =>
+                    `flex items-center px-3 py-2 rounded-lg transition-colors duration-200 ${
+                      isActive ? 'bg-white/20' : 'hover:bg-white/10'
+                    }`
+                  }
                 >
                   <Icon className="w-5 h-5 mr-3 text-white/90" />
                   <span className="text-sm font-medium text-white/90">{item.name}</span>
-                </a>
+                </NavLink>
               </li>
             );
           })}
-          
+
           <li>
-            <a
-              href="#"
-              className="flex items-center px-3 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 transition-colors duration-200"
+            <NavLink
+              to="/learner/mentors"
+              className={({ isActive }) =>
+                `flex items-center px-3 py-2 rounded-lg transition-colors duration-200 ${
+                  isActive ? 'bg-yellow-300' : 'bg-yellow-400 hover:bg-yellow-300'
+                }`
+              }
             >
               <Users className="w-5 h-5 mr-3 text-indigo-700" />
               <span className="text-sm font-bold text-indigo-700">All Mentors</span>
-            </a>
+            </NavLink>
           </li>
         </ul>
       </nav>
@@ -63,4 +72,3 @@ const LearnerSidebar = () => {
 };
 
 export default LearnerSidebar;
-
