@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'users',
     'courses',
+    'topics',
 
 ]
 

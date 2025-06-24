@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .models import Course, Category
 from .serializers import CourseSerializer, CategorySerializer
 from .trie import CategoryTrie
@@ -30,3 +31,6 @@ class CategorySuggestionView(APIView):
             trie.insert(cat.name)
         suggestions = trie.starts_with(query)
         return Response(suggestions)
+
+
+

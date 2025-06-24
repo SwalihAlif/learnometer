@@ -8,5 +8,6 @@ router.register(r'categories', CategoryViewSet, basename='categories')
 
 urlpatterns = [
     path('category-suggestions/', CategorySuggestionView.as_view(), name='category-suggestions'),
-    path('', include(router.urls)),
+    path('', include(router.urls)),  
+    
 ]

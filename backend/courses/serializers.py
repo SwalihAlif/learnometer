@@ -22,3 +22,6 @@ class CourseSerializer(serializers.ModelSerializer):
         validated_data.pop('learner', None)
         learner = self.context['request'].user
         return Course.objects.create(learner=learner, category=category, **validated_data)
+
+
+
