@@ -10,11 +10,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
 
+        data = super().validate(attrs)
         # Check if user is active (OTP verified)
         if not self.user.is_active:
             raise serializers.ValidationError("Your account is not verified. Please verify the OTP sent to your email.")
         
-        data = super().validate(attrs)
 
         # Add extra fields to the response data
         data['email'] = self.user.email
