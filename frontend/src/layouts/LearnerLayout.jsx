@@ -1,17 +1,23 @@
-import LearnerSidebar from '../components/sidebar/LearnerSidebar';
+import { Outlet, useLocation } from 'react-router-dom';
 import LearnerNavbar from '../components/navbar/LearnerNavbar';
 import LearnerFooter from '../components/footer/LearnerFooter';
+import LearnerSidebar from '../components/sidebar/LearnerSidebar';
 
-const LearnerLayout = ({ children }) => {
+const LearnerLayout = () => {
+  const location = useLocation();
+  const showSidebar = location.pathname === '/learner';
+
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: '#F9FAFB', color: '#1E1B4B' }}>
+    <div className="min-h-screen flex flex-col bg-[#F9FAFB] text-[#1E1B4B]">
       <LearnerNavbar />
+
       <div className="flex flex-1 overflow-hidden">
-        <LearnerSidebar />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
+        {showSidebar && <LearnerSidebar />}
+        <main className={`flex-1 overflow-y-auto p-6 ${showSidebar ? '' : 'w-full'}`}>
+          <Outlet />
         </main>
       </div>
+
       <LearnerFooter />
     </div>
   );
