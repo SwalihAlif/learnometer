@@ -47,39 +47,60 @@ const VerifyOTP = () => {
     if (value.length <= 6) setOtp(value);
   };
 
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault();
-    if (!email || !otp) return setError('Please enter both email and OTP');
-    if (otp.length !== 6) return setError('OTP must be 6 digits');
+const handleVerifyOTP = async (e) => {
+  e.preventDefault();
 
-    setIsVerifying(true);
-    setError('');
-    setSuccess('');
+  if (!email || !otp) {
+    return setError('Please enter both email and OTP');
+  }
 
-      try {
-          const res = await axiosInstance.post('users/verify-otp/', {
-              email: email.trim(),
-              code: otp.trim(),
-          });
-          setSuccess(res.data.message || 'OTP verified successfully!');
+  if (otp.length !== 6) {
+    return setError('OTP must be 6 digits');
+  }
 
-          setTimeout(() => {
-              if (role === 'mentor') {
-                  navigate('/mentor');
-              } else if (role === 'learner') {
-                  navigate('/learner');
-              } else {
-                  navigate('/dashboard'); // fallback
-              }
-          }, 1500);
+  setIsVerifying(true);
+  setError('');
+  setSuccess('');
 
-      } catch (err) {
-      const msg = err?.response?.data?.message || 'OTP verification failed';
-      setError(msg);
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+  try {
+    const res = await axiosInstance.post('users/verify-otp/', {
+      email: email.trim(),
+      code: otp.trim(),
+    });
+
+    // ✅ Save tokens
+    localStorage.setItem('access', res.data.access);
+    localStorage.setItem('refresh', res.data.refresh);
+
+    // ✅ Save user info
+    localStorage.setItem('email', res.data.email);
+    localStorage.setItem('role', res.data.role);
+
+    // ✅ Set success message
+    setSuccess(res.data.message || 'OTP verified successfully!');
+
+    // ✅ Redirect based on role
+    setTimeout(() => {
+      const userRole = res.data.role?.toLowerCase();  // safer redirect
+      if (userRole === 'mentor') {
+        navigate('/mentor');
+      } else if (userRole === 'learner') {
+        navigate('/learner');
+      } else if (userRole === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+    }, 1500);
+
+  } catch (err) {
+    const msg = err?.response?.data?.message || 'OTP verification failed';
+    setError(msg);
+  } finally {
+    setIsVerifying(false);
+  }
+};
+
 
   const handleResendOTP = async () => {
     if (!email) return setError('Email is required');

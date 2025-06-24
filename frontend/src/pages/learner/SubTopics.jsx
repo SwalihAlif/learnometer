@@ -1,46 +1,76 @@
-import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import axiosInstance from '../../axios';
 import { Check, Plus, Edit, Trash2, BookOpen, TrendingUp } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 const SubTopics = () => {
-  const [subtopics, setSubtopics] = useState([
-    { id: 1, title: 'HTML Tags', completed: true },
-    { id: 2, title: 'HTML Attributes', completed: true },
-    { id: 3, title: 'HTML Forms', completed: true },
-    { id: 4, title: 'HTML Tables', completed: false },
-    { id: 5, title: 'HTML Semantic Elements', completed: false },
-    { id: 6, title: 'HTML Media Elements', completed: false },
-    { id: 7, title: 'HTML Links and Navigation', completed: false },
-    { id: 8, title: 'HTML Best Practices', completed: false }
-  ]);
+  const { mainTopicId } = useParams();
+  const [subtopics, setSubtopics] = useState([]);
 
   const [newSubtopic, setNewSubtopic] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const toggleCompletion = (id) => {
-    setSubtopics(subtopics.map(subtopic => 
-      subtopic.id === id 
-        ? { ...subtopic, completed: !subtopic.completed }
-        : subtopic
-    ));
+  useEffect(() => {
+  const fetchSubtopics = async () => {
+    try {
+      const res = await axiosInstance.get(`topics/sub-topics/?main_topic_id=${mainTopicId}`);
+      setSubtopics(res.data.results || []);
+    } catch (err) {
+      console.error('Error fetching subtopics:', err);
+    }
   };
+
+  if (mainTopicId) fetchSubtopics();
+}, [mainTopicId]);
+
+
+const toggleCompletion = async (id, currentStatus) => {
+  const updatedStatus = !currentStatus;
+
+  try {
+    const res = await axiosInstance.patch(`topics/sub-topics/${id}/`, {
+      completed: updatedStatus
+    });
+
+    setSubtopics(prev =>
+      prev.map(subtopic =>
+        subtopic.id === id
+          ? { ...subtopic, completed: res.data.completed }
+          : subtopic
+      )
+    );
+  } catch (err) {
+    console.error(
+      `Failed to ${currentStatus ? 'unmark' : 'mark'} subtopic as complete:`,
+      err
+    );
+  }
+};
+
+
 
   const deleteSubtopic = (id) => {
     setSubtopics(subtopics.filter(subtopic => subtopic.id !== id));
   };
 
-  const addSubtopic = () => {
-    if (newSubtopic.trim()) {
-      const newId = Math.max(...subtopics.map(s => s.id), 0) + 1;
-      setSubtopics([...subtopics, { 
-        id: newId, 
-        title: newSubtopic.trim(), 
-        completed: false 
-      }]);
+  const addSubtopic = async () => {
+  if (newSubtopic.trim()) {
+    try {
+      const res = await axiosInstance.post('topics/sub-topics/', {
+        title: newSubtopic.trim(),
+        main_topic: mainTopicId,
+        completed: false, // optional: backend can default this
+      });
+
+      setSubtopics(prev => [...prev, res.data]);  // append new subtopic from backend
       setNewSubtopic('');
       setShowAddForm(false);
+    } catch (err) {
+      console.error('Failed to add subtopic:', err);
     }
-  };
+  }
+};
 
   const completedCount = subtopics.filter(s => s.completed).length;
   const totalCount = subtopics.length;
@@ -123,22 +153,21 @@ const SubTopics = () => {
                   subtopic.completed 
                     ? 'bg-green-50 border-green-200' 
                     : 'bg-white border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => toggleCompletion(subtopic.id)}
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                      subtopic.completed
+                    onClick={() => toggleCompletion(subtopic.id, subtopic.completed)}
+                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${subtopic.completed
                         ? 'bg-green-500 border-green-500 text-white'
                         : 'border-gray-300 hover:border-[#4F46E5]'
-                    }`}
+                      }`}
                   >
                     {subtopic.completed && <Check className="w-4 h-4" />}
                   </button>
+
                   <span
-                    className={`font-medium transition-all ${
-                      subtopic.completed
+                    className={`font-medium transition-all ${subtopic.completed
                         ? 'text-gray-400 line-through'
                         : 'text-[#1E1B4B]'
                     }`}

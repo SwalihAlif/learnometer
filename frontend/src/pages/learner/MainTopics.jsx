@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../axios';
 import { Plus, Eye, Edit3, Trash2, FileText, Brain, Calendar } from 'lucide-react';
 
 const MainTopics = () => {
+  const navigate = useNavigate();
   const { courseId } = useParams();
   const [topics, setTopics] = useState([]);
   const [newTopic, setNewTopic] = useState({
@@ -193,7 +194,8 @@ const MainTopics = () => {
 
               {/* Action Buttons Row 1 */}
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <button className="flex items-center justify-center px-3 py-2 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-50 transition-colors duration-200">
+                <button onClick={() => navigate(`/learner/sub-topics/${topic.id}`)}
+                className="flex items-center justify-center px-3 py-2 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-50 transition-colors duration-200">
                   <Eye className="w-4 h-4 mr-1" />
                   View Subtopics
                 </button>

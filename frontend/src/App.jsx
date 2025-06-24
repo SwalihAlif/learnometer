@@ -32,7 +32,7 @@ export default function App() {
           <Route index element={<LearnerDashboard />} /> {/* /learner */}
           <Route path="my-courses" element={<LearnerMyCourses />} />
           <Route path="main-topics/:courseId" element={<MainTopics />} />
-          <Route path="sub-topics" element={<SubTopics/>} />
+          <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
         </Route>
 
         {/* Mentor Layout */}
