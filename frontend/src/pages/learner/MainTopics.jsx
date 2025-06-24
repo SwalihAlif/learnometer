@@ -1,64 +1,113 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import axiosInstance from '../../axios';
 import { Plus, Eye, Edit3, Trash2, FileText, Brain, Calendar } from 'lucide-react';
 
 const MainTopics = () => {
-  const [topics, setTopics] = useState([
-    {
-      id: 1,
-      title: 'HTML Fundamentals',
-      description: 'Learn the building blocks of web pages with semantic HTML elements, forms, and accessibility best practices.',
-      subtopicsCount: 8,
-      createdDate: 'Jun 20, 2025'
-    },
-    {
-      id: 2,
-      title: 'CSS Styling & Layout',
-      description: 'Master styling techniques, flexbox, grid systems, and responsive design principles for modern web layouts.',
-      subtopicsCount: 12,
-      createdDate: 'Jun 18, 2025'
-    },
-    {
-      id: 3,
-      title: 'JavaScript Basics',
-      description: 'Introduction to programming concepts, DOM manipulation, events, and interactive web functionality.',
-      subtopicsCount: 15,
-      createdDate: 'Jun 15, 2025'
-    },
-    {
-      id: 4,
-      title: 'Responsive Web Design',
-      description: 'Create mobile-first designs that work seamlessly across all devices and screen sizes.',
-      subtopicsCount: 6,
-      createdDate: 'Jun 12, 2025'
-    }
-  ]);
-
+  const { courseId } = useParams();
+  const [topics, setTopics] = useState([]);
   const [newTopic, setNewTopic] = useState({
     title: '',
     description: ''
   });
 
-  const handleAddTopic = (e) => {
+  const [course, setCourse] = useState(null);
+
+  const [editModal, setEditModal] = useState({
+    visible: false,
+    id: null,
+    title: '',
+    description: '',
+  });
+
+
+  useEffect(() => {
+    const fetchCourse = async () => {
+      try {
+        const response = await axiosInstance.get(`courses/${courseId}/`);
+        setCourse(response.data);
+      } catch (error) {
+        console.error('Error fetching course details:', error);
+      }
+    };
+
+    if (courseId) {
+      fetchCourse();
+    }
+  }, [courseId]);
+
+  useEffect(() => {
+    const fetchTopics = async () => {
+      try {
+        const res = await axiosInstance.get(`topics/main-topic/?course_id=${courseId}`);
+
+        console.log("Fetched Topics:", res.data);
+
+        setTopics(res.data.results);
+      } catch (err) {
+        console.error('Failed to fetch topics:', err);
+      }
+    };
+
+    fetchTopics();
+  }, [courseId]);
+
+  const handleAddTopic = async (e) => {
     e.preventDefault();
     if (newTopic.title.trim() && newTopic.description.trim()) {
-      const topic = {
-        id: topics.length + 1,
-        title: newTopic.title,
-        description: newTopic.description,
-        subtopicsCount: 0,
-        createdDate: new Date().toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: 'numeric' 
-        })
-      };
-      setTopics([...topics, topic]);
-      setNewTopic({ title: '', description: '' });
+      try {
+        const res = await axiosInstance.post('topics/main-topic/', {
+          title: newTopic.title,
+          description: newTopic.description,
+          course: courseId,
+        });
+
+        const topic = {
+          ...res.data,
+          subtopicsCount: 0, // 🔹 default value
+          createdDate: new Date(res.data.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+        };
+
+        setTopics((prev) => [...prev, topic]);
+        setNewTopic({ title: '', description: '' });
+      } catch (err) {
+        console.error('Failed to create topic:', err);
+      }
     }
   };
 
-  const handleDeleteTopic = (id) => {
-    setTopics(topics.filter(topic => topic.id !== id));
+  const handleUpdateTopic = async () => {
+    try {
+      const { id, title, description } = editModal;
+      const res = await axiosInstance.put(`topics/main-topic/${id}/`, {
+        title,
+        description,
+        course: courseId, // 🔁 Required for update
+      });
+
+      setTopics((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, title, description } : t))
+      );
+
+      setEditModal({ visible: false, id: null, title: '', description: '' });
+    } catch (err) {
+      console.error('Failed to update topic:', err);
+    }
+  };
+
+
+
+  const handleDeleteTopic = async (id) => {
+    try {
+      await axiosInstance.delete(`topics/main-topic/${id}/`);
+      setTopics((prev) => prev.filter(topic => topic.id !== id));
+    } catch (err) {
+      console.error('Failed to delete topic:', err);
+    }
   };
 
   return (
@@ -66,14 +115,14 @@ const MainTopics = () => {
       {/* Breadcrumb */}
       <div className="mb-4">
         <p className="text-sm text-gray-500">
-          My Courses / Web Development Fundamentals / Main Topics
+          My Courses / {course ? course.title : '...'} / Main Topics
         </p>
       </div>
 
       {/* Course Title Section */}
       <div className="bg-indigo-600 rounded-lg p-6 mb-6 text-white">
         <h1 className="text-3xl md:text-4xl font-bold mb-2">
-          Web Development Fundamentals
+          {course ? course.title : 'Loading...'}
         </h1>
         <p className="text-lg md:text-xl text-indigo-100">
           Manage your learning journey by adding key topics.
@@ -121,7 +170,7 @@ const MainTopics = () => {
         <h2 className="text-2xl font-bold text-indigo-900 mb-6">
           All Main Topics ({topics.length})
         </h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {topics.map((topic) => (
             <div key={topic.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -148,11 +197,22 @@ const MainTopics = () => {
                   <Eye className="w-4 h-4 mr-1" />
                   View Subtopics
                 </button>
-                <button className="flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200">
+                <button
+                  onClick={() =>
+                    setEditModal({
+                      visible: true,
+                      id: topic.id,
+                      title: topic.title,
+                      description: topic.description,
+                    })
+                  }
+                  className="flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                >
                   <Edit3 className="w-4 h-4 mr-1" />
                   Edit
                 </button>
-                <button 
+
+                <button
                   onClick={() => handleDeleteTopic(topic.id)}
                   className="flex items-center justify-center px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors duration-200"
                 >
@@ -193,6 +253,46 @@ const MainTopics = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editModal.visible && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <h2 className="text-xl font-semibold mb-4 text-indigo-900">Edit Topic</h2>
+            <input
+              type="text"
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-3"
+              value={editModal.title}
+              onChange={(e) =>
+                setEditModal((prev) => ({ ...prev, title: e.target.value }))
+              }
+            />
+            <textarea
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4"
+              rows={4}
+              value={editModal.description}
+              onChange={(e) =>
+                setEditModal((prev) => ({ ...prev, description: e.target.value }))
+              }
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setEditModal({ visible: false })}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateTopic}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+              >
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
