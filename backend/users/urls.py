@@ -1,7 +1,15 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from users.views import MyTokenObtainPairView 
-from users.views import RegisterMentorView, RegisterLearnerView, OTPVerifyView, ResendOTPView
+from users.views import RegisterMentorView, RegisterLearnerView, OTPVerifyView, ResendOTPView, UserProfileDetailUpdateView
+from .views import (
+    AdminLearnerListCreateView,
+    AdminLearnerRetrieveUpdateDeleteView,
+)
+from .views import (
+    AdminMentorListCreateView,
+    AdminMentorRetrieveUpdateDeleteView
+)
 
 
 
@@ -11,7 +19,16 @@ urlpatterns = [
     path('register/mentor/', RegisterMentorView.as_view(), name='register_mentor'),
     path('register/learner/', RegisterLearnerView.as_view(), name='register_learner'),
     path('verify-otp/', OTPVerifyView.as_view(), name='verify-otp'),
-    path('resend-otp/', ResendOTPView.as_view(), name='resend-otp')
+    path('resend-otp/', ResendOTPView.as_view(), name='resend-otp'),
+    path('profile/', UserProfileDetailUpdateView.as_view(), name='user-profile'),
+    
+    # admin
+
+    path("admin/learners/", AdminLearnerListCreateView.as_view(), name="admin-learner-list-create"),
+    path("admin/learners/<int:pk>/", AdminLearnerRetrieveUpdateDeleteView.as_view(), name="admin-learner-detail"),
+
+    path('admin/mentors/', AdminMentorListCreateView.as_view(), name='admin-mentor-list-create'),
+    path('admin/mentors/<int:pk>/', AdminMentorRetrieveUpdateDeleteView.as_view(), name='admin-mentor-detail'),
 
 ]
  

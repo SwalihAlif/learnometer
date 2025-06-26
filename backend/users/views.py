@@ -9,6 +9,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .utils import send_otp_email
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
+from .serializers import OTPVerifySerializer
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -45,13 +50,6 @@ class RegisterLearnerView(generics.CreateAPIView):
             otp = OTP.objects.create(user=user)
             send_otp_email(user.email, otp.code)
 
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
-from .models import OTP
-from .serializers import OTPVerifySerializer
 
 User = get_user_model()
 
@@ -108,4 +106,82 @@ class ResendOTPView(APIView):
             return Response({"detail": "New OTP sent."})
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=400)
+
+from rest_framework import generics, permissions
+from .models import UserProfile
+from .serializers import UserProfileSerializer
+
+class UserProfileDetailUpdateView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return UserProfile.objects.get(user=self.request.user)
+
+
+
+
+
+
+# ---------------------------------------------------- Admin Learner Management -------------------------------------------------------
+
+from rest_framework import generics, permissions
+from users.models import User, Role
+from .serializers import AdminLearnerCRUDSerializer
+
+
+class AdminLearnerListCreateView(generics.ListCreateAPIView):
+    """
+    Admin can list all learners or create a new learner
+    """
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = AdminLearnerCRUDSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(role__name='Learner').select_related('userprofile')
+
+
+class AdminLearnerRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Admin can retrieve, update or delete a specific learner
+    """
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = AdminLearnerCRUDSerializer
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        return User.objects.filter(role__name='Learner').select_related('userprofile')
+
+
+
+# ------------------------------------------------- Manage Mentors -------------------------------------------------------------
+from rest_framework import generics, permissions
+from django.contrib.auth import get_user_model
+from users.models import Role
+from .serializers import AdminMentorCRUDSerializer
+
+User = get_user_model()
+
+
+class AdminMentorListCreateView(generics.ListCreateAPIView):
+    """
+    Admin can list all mentors or create a new mentor.
+    """
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = AdminMentorCRUDSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(role__name="Mentor").select_related("userprofile")
+
+
+class AdminMentorRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Admin can view, update, delete or approve a mentor.
+    """
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = AdminMentorCRUDSerializer
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        return User.objects.filter(role__name="Mentor").select_related("userprofile")
 

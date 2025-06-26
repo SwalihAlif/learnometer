@@ -67,6 +67,7 @@ class UserProfile(models.Model):
     linkedin_profile = models.URLField(blank=True, null=True)
     portfolio_website = models.URLField(blank=True, null=True)
     availability_schedule = models.JSONField(blank=True, null=True)  # { day: {start, end}, ... }
+    is_approved = models.BooleanField(default=False) # for mentor approval
 
     def __str__(self):
         return f"{self.user.email} Profile"
