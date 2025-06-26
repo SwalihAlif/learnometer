@@ -9,7 +9,7 @@ const LearnerRegistration = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    phoneNumber: '',
+    phone: '',
     profilePicture: null,
     learningCategories: [],
     learningGoals: '',
@@ -101,7 +101,7 @@ const LearnerRegistration = () => {
     email,
     password,
     confirmPassword,
-    phoneNumber,
+    phone,
     profilePicture,
     learningCategories,
     learningGoals,
@@ -110,7 +110,7 @@ const LearnerRegistration = () => {
   } = formData;
 
   // Basic field validation
-  if (!fullName || !email || !password || !confirmPassword || !phoneNumber || !learningGoals) {
+  if (!fullName || !email || !password || !confirmPassword || !phone || !learningGoals) {
     alert('Please fill in all required fields.');
     return;
   }
@@ -141,7 +141,7 @@ const LearnerRegistration = () => {
   data.append('email', email);
   data.append('password', password);
   data.append('confirm_password', confirmPassword);
-  data.append('phone_number', phoneNumber);
+  data.append('phone', phone);
   data.append('learning_goals', learningGoals);
   data.append('learning_categories', JSON.stringify(learningCategories));
   data.append('languages', JSON.stringify(languages));
@@ -195,7 +195,7 @@ const LearnerRegistration = () => {
               </div>
               <h2 className="text-2xl font-bold text-[#1E1B4B] mb-2">Verify Your Account</h2>
               <p className="text-gray-600">
-                We've sent a 6-digit OTP to your email ({formData.email}) and phone number ({formData.phoneNumber})
+                We've sent a 6-digit OTP to your email ({formData.email}) and phone number ({formData.phone})
               </p>
             </div>
 
@@ -341,8 +341,8 @@ const LearnerRegistration = () => {
                     <Phone className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                     <input
                       type="tel"
-                      name="phoneNumber"
-                      value={formData.phoneNumber}
+                      name="phone"
+                      value={formData.phone}
                       onChange={handleInputChange}
                       placeholder="Enter your phone number"
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]"

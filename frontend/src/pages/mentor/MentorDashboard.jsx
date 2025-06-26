@@ -1,7 +1,7 @@
-// src/pages/mentor/MentorDashboard.jsx
-
-import React, { useState } from 'react';
-import { 
+import axiosInstance from '../../axios';
+import React, { useEffect, useState } from 'react';
+import { format } from 'date-fns';
+import {
   AcademicCapIcon,
   UserGroupIcon,
   StarIcon,
@@ -21,8 +21,17 @@ import {
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { StarIcon as StarSolid, PencilSquareIcon } from '@heroicons/react/24/solid';
 
 const MentorDashboard = () => {
+  const [profileData, setProfileData] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editData, setEditData] = useState({
+    full_name: '',
+    contact_number: '',
+    bio: ''
+  });
+
   const [earningsToggle, setEarningsToggle] = useState('Monthly');
   const [rankToggle, setRankToggle] = useState('Amount Earned');
   const [rankDropdownOpen, setRankDropdownOpen] = useState(false);
@@ -80,10 +89,45 @@ const MentorDashboard = () => {
     return rankData[rankToggle];
   };
 
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const res = await axiosInstance.get('users/profile/');
+      setProfileData(res.data);
+      setEditData({
+        full_name: res.data.full_name || '',
+        contact_number: res.data.contact_number || '',
+        bio: res.data.bio || ''
+      });
+    } catch (err) {
+      console.error('Failed to fetch profile data', err);
+    }
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfileUpdate = async () => {
+    try {
+      await axiosInstance.put('users/profile/', editData); // Your actual endpoint
+      setIsEditModalOpen(false);
+      fetchProfileData();
+    } catch (err) {
+      console.error('Update failed', err);
+    }
+  };
+
+
+
   return (
     <div className="min-h-screen bg-emerald-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        
+
         {/* Section 1: Impact Overview */}
         <div>
           <h1 className="text-3xl font-bold text-emerald-900 mb-6">Impact Overview</h1>
@@ -107,54 +151,125 @@ const MentorDashboard = () => {
           </div>
         </div>
 
-        {/* Section 2: Profile Summary */}
-        <div className="bg-white rounded-xl shadow-md p-8 border border-emerald-100">
+      {/* Section: Profile Summary */}
+      {profileData && (
+        <div className="bg-white rounded-xl shadow-md p-6 border border-emerald-100 relative">
+          {/* Edit icon */}
+          <div className="absolute top-4 right-4">
+            <button onClick={() => setIsEditModalOpen(true)} title="Edit Profile">
+              <PencilSquareIcon className="w-5 h-5 text-emerald-600 hover:text-emerald-800" />
+            </button>
+          </div>
+
           <h2 className="text-2xl font-bold text-emerald-900 mb-6">Profile Summary</h2>
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-shrink-0">
-              <div className="w-32 h-32 bg-gradient-to-br from-teal-600 to-emerald-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                DR
-              </div>
+              {profileData.profile_picture ? (
+                <img
+                  src={profileData.profile_picture}
+                  alt="Profile"
+                  className="w-32 h-32 rounded-full object-cover border-2 border-emerald-500"
+                />
+              ) : (
+                <div className="w-32 h-32 bg-gradient-to-br from-teal-600 to-emerald-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+                  {profileData.full_name?.charAt(0) || "?"}
+                </div>
+              )}
             </div>
+
             <div className="flex-1 space-y-4">
               <div>
-                <h3 className="text-2xl font-bold text-emerald-900">Dr. Rahul Verma</h3>
-                <p className="text-lg font-semibold text-teal-600">Data Scientist & Python Mentor</p>
-                <p className="text-emerald-700 mt-2">Passionate educator with 8+ years of experience in data science and machine learning. I love helping students understand complex concepts through practical examples.</p>
+                <h3 className="text-2xl font-bold text-emerald-900">{profileData.full_name}</h3>
+                <p className="text-lg font-semibold text-teal-600">{profileData.preferred_categories?.join(", ")}</p>
+                <p className="text-emerald-700 mt-2">{profileData.bio}</p>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center text-emerald-700">
                   <EnvelopeIcon className="h-5 w-5 mr-2 text-teal-600" />
-                  📧 rahul.verma@email.com
+                  {profileData.email}
                 </div>
                 <div className="flex items-center text-emerald-700">
                   <PhoneIcon className="h-5 w-5 mr-2 text-teal-600" />
-                  📞 +91 98765 43210
+                  {profileData.contact_number || "N/A"}
                 </div>
                 <div className="flex items-center text-emerald-700">
                   <BriefcaseIcon className="h-5 w-5 mr-2 text-teal-600" />
-                  🧑‍💼 8+ Years Experience
+                  {profileData.experience_years || 0}+ Years Experience
                 </div>
                 <div className="flex items-center text-emerald-700">
                   <ClockIcon className="h-5 w-5 mr-2 text-teal-600" />
-                  🗓️ Member Since Mar 2023
+                  🗓️ Member Since {format(new Date(profileData.created_at), "MMM yyyy")}
                 </div>
               </div>
 
-              <div>
-                <p className="text-sm font-semibold text-emerald-800 mb-2">🧠 Specialized Subjects:</p>
-                <div className="flex flex-wrap gap-2">
-                  {specializations.map((subject, index) => (
-                    <span key={index} className="bg-gradient-to-r from-teal-100 to-emerald-100 text-teal-800 px-3 py-1 rounded-full text-sm font-medium border border-teal-200">
-                      {subject}
-                    </span>
-                  ))}
+              {profileData.preferred_categories?.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800 mb-2">🧠 Specialized Subjects:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.preferred_categories.map((subject, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-gradient-to-r from-teal-100 to-emerald-100 text-teal-800 px-3 py-1 rounded-full text-sm font-medium border border-teal-200"
+                      >
+                        {subject}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
+      )}
+
+ {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-lg">
+            <h3 className="text-xl font-semibold text-emerald-800 mb-4">Edit Profile</h3>
+            <div className="space-y-3">
+              <input
+                name="full_name"
+                value={editData.full_name}
+                onChange={handleEditChange}
+                className="w-full border p-2 rounded text-sm"
+                placeholder="Full Name"
+              />
+              <input
+                name="contact_number"
+                value={editData.contact_number}
+                onChange={handleEditChange}
+                className="w-full border p-2 rounded text-sm"
+                placeholder="Contact Number"
+              />
+              <textarea
+                name="bio"
+                value={editData.bio}
+                onChange={handleEditChange}
+                className="w-full border p-2 rounded text-sm"
+                placeholder="Bio"
+                rows="3"
+              />
+            </div>
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleProfileUpdate}
+                className="px-4 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
         {/* Section 3: Session Schedule + Learner Feedback */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -209,11 +324,10 @@ const MentorDashboard = () => {
                 <button
                   key={period}
                   onClick={() => setEarningsToggle(period)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
-                    earningsToggle === period 
-                      ? 'bg-teal-600 text-white shadow-md' 
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${earningsToggle === period
+                      ? 'bg-teal-600 text-white shadow-md'
                       : 'text-emerald-700 hover:text-teal-600'
-                  }`}
+                    }`}
                 >
                   {period}
                 </button>

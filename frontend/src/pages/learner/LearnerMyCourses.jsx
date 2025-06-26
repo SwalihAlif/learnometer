@@ -2,6 +2,8 @@ import axiosInstance from '../../axios';
 import { useEffect, useState } from 'react';
 import { BookOpen, Plus, Edit, Trash2, Users, Eye, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { showToast } from '../../redux/slices/toastSlice';
 
 const LearnerMyCourses = () => {
   const [courses, setCourses] = useState([]);
@@ -21,6 +23,8 @@ const LearnerMyCourses = () => {
     description: ''
   });
   const navigate = useNavigate();
+
+  const dispatch = useDispatch();
 
   // Fetch existing courses on page load
   useEffect(() => {
@@ -84,12 +88,18 @@ const LearnerMyCourses = () => {
         setNewCourse({ title: '', category: '', description: '' });
         setCategorySearch('');
         setShowCategorySuggestions(false);
+
+        dispatch(showToast({ message: 'Course created successfully!', type: 'success' }));
+
       } catch (err) {
         console.error('Error creating course:', err);
         if (err.response) {
           console.error('Backend error response:', err.response.data);
         }
+        dispatch(showToast({ message: 'Failed to create course.', type: 'error' }));
       }
+    } else {
+      dispatch(showToast({ message: 'Please fill all fields.', type: 'error' }));
     }
   };
 
@@ -101,27 +111,27 @@ const LearnerMyCourses = () => {
     });
   };
 
- const handleUpdateCourse = async (id) => {
-  try {
-    const categoryName = courses.find(c => c.id === id)?.category?.name || '';
-    
-    const res = await axiosInstance.put(`courses/${id}/`, {
-      title: editedCourse.title,
-      description: editedCourse.description,
-      category_name: categoryName  // ✅ include this!
-    });
+  const handleUpdateCourse = async (id) => {
+    try {
+      const categoryName = courses.find(c => c.id === id)?.category?.name || '';
 
-    setCourses((prev) =>
-      prev.map((c) => (c.id === id ? res.data : c))
-    );
-    setEditingCourseId(null);
-  } catch (err) {
-    console.error('Error updating course:', err);
-    if (err.response) {
-      console.error('Backend response:', err.response.data);
+      const res = await axiosInstance.put(`courses/${id}/`, {
+        title: editedCourse.title,
+        description: editedCourse.description,
+        category_name: categoryName  // ✅ include this!
+      });
+
+      setCourses((prev) =>
+        prev.map((c) => (c.id === id ? res.data : c))
+      );
+      setEditingCourseId(null);
+    } catch (err) {
+      console.error('Error updating course:', err);
+      if (err.response) {
+        console.error('Backend response:', err.response.data);
+      }
     }
-  }
-};
+  };
 
 
 
@@ -143,8 +153,8 @@ const LearnerMyCourses = () => {
   };
 
   const handleViewMainTopics = (courseId) => {
-  navigate(`/learner/main-topics/${courseId}`);
-};
+    navigate(`/learner/main-topics/${courseId}`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
@@ -336,9 +346,9 @@ const LearnerMyCourses = () => {
                       </button>
                     </div>
 
-                    <button 
-                    onClick={() => handleViewMainTopics(course.id)}
-                    className="w-full border-2 border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg hover:bg-[#4F46E5] hover:text-white transition-colors text-sm font-medium flex items-center justify-center">
+                    <button
+                      onClick={() => handleViewMainTopics(course.id)}
+                      className="w-full border-2 border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg hover:bg-[#4F46E5] hover:text-white transition-colors text-sm font-medium flex items-center justify-center">
                       <Eye className="w-4 h-4 mr-2" />
                       View Main Topics
                     </button>

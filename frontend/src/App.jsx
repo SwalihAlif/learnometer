@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Toast from "./components/common/Toast";
 
 // Layouts
 import AdminLayout from "./layouts/AdminLayout";
@@ -16,6 +17,8 @@ import MentorDashboard from "./pages/mentor/MentorDashboard";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import ManageLearner from "./pages/admin/ManageLearner";
+import ManageMentors from "./pages/admin/ManageMentors";
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -43,6 +46,8 @@ export default function App() {
         {/* Admin Layout */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} /> {/* /admin */}
+          <Route path="learners" element={<ManageLearner />} />
+          <Route path="mentors" element={<ManageMentors />} />
         </Route>
 
         {/* Auth Routes */}
@@ -51,6 +56,8 @@ export default function App() {
         <Route path="/mregister" element={<RegisterMentor />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
       </Routes>
+
+      <Toast />
     </BrowserRouter>
   );
 }

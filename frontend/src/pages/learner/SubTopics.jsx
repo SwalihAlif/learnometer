@@ -12,65 +12,89 @@ const SubTopics = () => {
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
-  const fetchSubtopics = async () => {
+    const fetchSubtopics = async () => {
+      try {
+        const res = await axiosInstance.get(`topics/sub-topics/?main_topic_id=${mainTopicId}`);
+        setSubtopics(res.data.results || []);
+      } catch (err) {
+        console.error('Error fetching subtopics:', err);
+      }
+    };
+
+    if (mainTopicId) fetchSubtopics();
+  }, [mainTopicId]);
+
+
+  const toggleCompletion = async (id, currentStatus) => {
+    const updatedStatus = !currentStatus;
+
     try {
-      const res = await axiosInstance.get(`topics/sub-topics/?main_topic_id=${mainTopicId}`);
-      setSubtopics(res.data.results || []);
-    } catch (err) {
-      console.error('Error fetching subtopics:', err);
-    }
-  };
-
-  if (mainTopicId) fetchSubtopics();
-}, [mainTopicId]);
-
-
-const toggleCompletion = async (id, currentStatus) => {
-  const updatedStatus = !currentStatus;
-
-  try {
-    const res = await axiosInstance.patch(`topics/sub-topics/${id}/`, {
-      completed: updatedStatus
-    });
-
-    setSubtopics(prev =>
-      prev.map(subtopic =>
-        subtopic.id === id
-          ? { ...subtopic, completed: res.data.completed }
-          : subtopic
-      )
-    );
-  } catch (err) {
-    console.error(
-      `Failed to ${currentStatus ? 'unmark' : 'mark'} subtopic as complete:`,
-      err
-    );
-  }
-};
-
-
-
-  const deleteSubtopic = (id) => {
-    setSubtopics(subtopics.filter(subtopic => subtopic.id !== id));
-  };
-
-  const addSubtopic = async () => {
-  if (newSubtopic.trim()) {
-    try {
-      const res = await axiosInstance.post('topics/sub-topics/', {
-        title: newSubtopic.trim(),
-        main_topic: mainTopicId,
-        completed: false, // optional: backend can default this
+      const res = await axiosInstance.patch(`topics/sub-topics/${id}/`, {
+        completed: updatedStatus
       });
 
-      setSubtopics(prev => [...prev, res.data]);  // append new subtopic from backend
-      setNewSubtopic('');
-      setShowAddForm(false);
+      setSubtopics(prev =>
+        prev.map(subtopic =>
+          subtopic.id === id
+            ? { ...subtopic, completed: res.data.completed }
+            : subtopic
+        )
+      );
     } catch (err) {
-      console.error('Failed to add subtopic:', err);
+      console.error(
+        `Failed to ${currentStatus ? 'unmark' : 'mark'} subtopic as complete:`,
+        err
+      );
     }
-  }
-};
+  };
+
+
+  const addSubtopic = async () => {
+    if (newSubtopic.trim()) {
+      try {
+        const res = await axiosInstance.post('topics/sub-topics/', {
+          title: newSubtopic.trim(),
+          main_topic: mainTopicId,
+          completed: false, // optional: backend can default this
+        });
+
+        setSubtopics(prev => [...prev, res.data]);  // append new subtopic from backend
+        setNewSubtopic('');
+        setShowAddForm(false);
+      } catch (err) {
+        console.error('Failed to add subtopic:', err);
+      }
+    }
+  };
+
+  const updateSubtopic = async (id, updatedTitle) => {
+    if (!updatedTitle.trim()) return;
+
+    try {
+      const res = await axiosInstance.patch(`topics/sub-topics/${id}/`, {
+        title: updatedTitle.trim(),
+      });
+
+      setSubtopics(prev =>
+        prev.map(subtopic =>
+          subtopic.id === id ? { ...subtopic, title: res.data.title } : subtopic
+        )
+      );
+    } catch (err) {
+      console.error('Failed to update subtopic:', err);
+    }
+  };
+
+
+  const deleteSubtopic = async (id) => {
+    try {
+      await axiosInstance.delete(`topics/sub-topics/${id}/`);
+      setSubtopics(prev => prev.filter(subtopic => subtopic.id !== id));
+    } catch (err) {
+      console.error('Failed to delete subtopic:', err);
+    }
+  };
+
 
   const completedCount = subtopics.filter(s => s.completed).length;
   const totalCount = subtopics.length;
@@ -149,9 +173,8 @@ const toggleCompletion = async (id, currentStatus) => {
             {subtopics.map((subtopic) => (
               <div
                 key={subtopic.id}
-                className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
-                  subtopic.completed 
-                    ? 'bg-green-50 border-green-200' 
+                className={`flex items-center justify-between p-4 border rounded-lg transition-all ${subtopic.completed
+                    ? 'bg-green-50 border-green-200'
                     : 'bg-white border-gray-200 hover:border-gray-300'
                   }`}
               >
@@ -159,8 +182,8 @@ const toggleCompletion = async (id, currentStatus) => {
                   <button
                     onClick={() => toggleCompletion(subtopic.id, subtopic.completed)}
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${subtopic.completed
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : 'border-gray-300 hover:border-[#4F46E5]'
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : 'border-gray-300 hover:border-[#4F46E5]'
                       }`}
                   >
                     {subtopic.completed && <Check className="w-4 h-4" />}
@@ -168,20 +191,25 @@ const toggleCompletion = async (id, currentStatus) => {
 
                   <span
                     className={`font-medium transition-all ${subtopic.completed
-                        ? 'text-gray-400 line-through'
-                        : 'text-[#1E1B4B]'
-                    }`}
+                      ? 'text-gray-400 line-through'
+                      : 'text-[#1E1B4B]'
+                      }`}
                   >
                     {subtopic.title}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => {
+                      const newTitle = prompt("Edit subtopic title:", subtopic.title);
+                      if (newTitle !== null) updateSubtopic(subtopic.id, newTitle);
+                    }}
                     className="p-2 text-gray-500 hover:text-[#4F46E5] hover:bg-indigo-50 rounded transition-all"
                     title="Edit"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
+
                   <button
                     onClick={() => deleteSubtopic(subtopic.id)}
                     className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded transition-all"
@@ -190,6 +218,7 @@ const toggleCompletion = async (id, currentStatus) => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+
               </div>
             ))}
           </div>
@@ -236,7 +265,7 @@ const toggleCompletion = async (id, currentStatus) => {
                 </div>
                 <div className="text-gray-600">Overall Progress</div>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="p-3 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">{completedCount}</div>

@@ -1,3 +1,4 @@
+import { Outlet } from 'react-router-dom';
 import MentorSidebar from '../components/sidebar/MentorSidebar';
 import MentorNavbar from '../components/navbar/MentorNavbar';
 import MentorFooter from '../components/footer/MentorFooter';
@@ -10,6 +11,7 @@ const MentorLayout = ({ children }) => {
         <MentorSidebar />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
+          <Outlet />
         </main>
       </div>
       <MentorFooter />

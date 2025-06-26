@@ -1,11 +1,11 @@
-// src/pages/learner/LearnerDashboard.jsx
-import React, { useState } from 'react';
-import { 
-  BookOpenIcon, 
-  CheckCircleIcon, 
-  FireIcon, 
-  ChartBarIcon, 
-  CurrencyDollarIcon, 
+import axiosInstance from '../../axios';
+import React, { useEffect, useState } from 'react';
+import {
+  BookOpenIcon,
+  CheckCircleIcon,
+  FireIcon,
+  ChartBarIcon,
+  CurrencyDollarIcon,
   GiftIcon,
   CalendarIcon,
   PlayIcon,
@@ -24,6 +24,11 @@ import {
 } from '@heroicons/react/24/outline';
 
 const LearnerDashboard = () => {
+
+  const [profileData, setProfileData] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editData, setEditData] = useState({});
+
   const [progressToggle, setProgressToggle] = useState('This Week');
   const [preferences, setPreferences] = useState({
     dailyReminders: true,
@@ -71,14 +76,43 @@ const LearnerDashboard = () => {
 
   const userRank = getRankFromStreak(23);
 
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await axiosInstance.get('users/profile/');
+      setProfileData(res.data);
+      setEditData(res.data); // for editing
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
+    }
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    try {
+      await axiosInstance.put("users/profile/", editData);
+      setIsEditModalOpen(false);
+      fetchProfile();
+    } catch (err) {
+      console.error("Update failed", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col lg:flex-row gap-6">
-          
+
           {/* Left Section - 2/3 width */}
           <div className="flex-1 lg:w-2/3 space-y-6">
-            
+
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {stats.map((stat, index) => (
@@ -143,11 +177,10 @@ const LearnerDashboard = () => {
                     <button
                       key={period}
                       onClick={() => setProgressToggle(period)}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
-                        progressToggle === period 
-                          ? 'bg-indigo-600 text-white shadow-md' 
-                          : 'text-gray-600 hover:text-indigo-600'
-                      }`}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${progressToggle === period
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'text-gray-600 hover:text-indigo-600'
+                        }`}
                     >
                       {period}
                     </button>
@@ -166,32 +199,115 @@ const LearnerDashboard = () => {
 
           {/* Right Section - 1/3 width */}
           <div className="lg:w-1/3 space-y-6">
-            
+
             {/* Profile Card */}
-            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-              <div className="text-center mb-6">
-                <div className="relative inline-block">
-                  <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3">
-                    JD
+            {profileData && (
+              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                <div className="text-center mb-6">
+                  <div className="relative inline-block">
+                    {/* Profile Image or Initials */}
+                    {profileData.profile_picture ? (
+                      <img
+                        src={profileData.profile_picture}
+                        alt="Profile"
+                        className="w-24 h-24 rounded-full object-cover mx-auto mb-3 border-2 border-indigo-400"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3">
+                        {profileData.full_name?.split(" ").map(w => w[0]).join("").toUpperCase() || "U"}
+                      </div>
+                    )}
+
+                    {/* Upload Button */}
+                    <button
+                      className="absolute -bottom-1 -right-1 bg-yellow-400 hover:bg-yellow-500 p-2 rounded-full shadow-md transition-all duration-300"
+                      onClick={() => document.getElementById('fileInput').click()}
+                    >
+                      <CameraIcon className="h-4 w-4 text-white" />
+                    </button>
+
+
                   </div>
-                  <button className="absolute -bottom-1 -right-1 bg-yellow-400 hover:bg-yellow-500 p-2 rounded-full shadow-md transition-all duration-300">
-                    <CameraIcon className="h-4 w-4 text-white" />
+
+                  {/* Name, Email, Phone */}
+                  <h3 className="text-xl font-bold text-indigo-900">
+                    {profileData.full_name || "Unknown User"}
+                  </h3>
+                  <p className="text-gray-600">{profileData.email || "No email provided"}</p>
+                  <p className="text-gray-600">{profileData.contact_number || "No contact number"}</p>
+
+                  {/* Edit Button */}
+                  <button
+                    className="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center mx-auto"
+                    onClick={() => setIsEditModalOpen(true)}  
+                  >
+                    <PencilIcon className="h-4 w-4 mr-1" />
+                     Edit Profile
                   </button>
                 </div>
-                <h3 className="text-xl font-bold text-indigo-900">John Doe</h3>
-                <p className="text-gray-600">john.doe@email.com</p>
-                <p className="text-gray-600">+1 (555) 123-4567</p>
-                <button className="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center mx-auto">
-                  <PencilIcon className="h-4 w-4 mr-1" />
-                  ✏️ Edit Profile
+              </div>
+            )}
+
+
+ {/* Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md relative">
+            <button
+              onClick={() => setIsEditModalOpen(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-red-600"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-700">Full Name</label>
+                <input
+                  type="text"
+                  name="full_name"
+                  value={editData.full_name || ""}
+                  onChange={handleEditChange}
+                  className="w-full border px-3 py-2 rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700">Contact Number</label>
+                <input
+                  type="text"
+                  name="contact_number"
+                  value={editData.contact_number || ""}
+                  onChange={handleEditChange}
+                  className="w-full border px-3 py-2 rounded"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700">Bio</label>
+                <textarea
+                  name="bio"
+                  value={editData.bio || ""}
+                  onChange={handleEditChange}
+                  className="w-full border px-3 py-2 rounded"
+                />
+              </div>
+              <div className="text-right">
+                <button
+                  onClick={handleSave}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                >
+                  Save Changes
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
             {/* Learning Preferences */}
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
               <h3 className="text-lg font-bold text-indigo-900 mb-4">Learning Preferences</h3>
-              
+
               <div className="space-y-4 mb-6">
                 {[
                   { key: 'dailyReminders', label: '🕒 Daily Reminders', icon: ClockIcon },
@@ -205,14 +321,12 @@ const LearnerDashboard = () => {
                     </div>
                     <button
                       onClick={() => togglePreference(key)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        preferences[key] ? 'bg-indigo-600' : 'bg-gray-300'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${preferences[key] ? 'bg-indigo-600' : 'bg-gray-300'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          preferences[key] ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${preferences[key] ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </div>
