@@ -51,7 +51,7 @@ export default function App() {
         </Route>
 
         {/* Auth Routes */}
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<LoginPage />} />
         <Route path="/lregister" element={<LearnerRegistration />} />
         <Route path="/mregister" element={<RegisterMentor />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />

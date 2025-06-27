@@ -1,14 +1,29 @@
+import axiosInstance from '../../axios'
 import { BellIcon, LogOutIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AdminNavbar = () => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    // Clear tokens or session storage here if needed
+  const handleLogout = async () => {
+  try {
+    const refresh = localStorage.getItem('refresh');
+    console.log("🪙 Refresh token before logout:", refresh); 
+
+    if (!refresh) {
+      alert("Logout failed: No refresh token found.");
+      return;
+    }
+
+    await axiosInstance.post('users/logout/', { refresh });
+
     localStorage.clear();
-    navigate('/login'); // Redirect to login page
-  };
+    navigate('/');
+  } catch (error) {
+    console.error("Logout failed:", error.response?.data || error.message);
+    alert("Logout failed. Please try again.");
+  }
+};
 
   return (
     <nav

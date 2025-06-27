@@ -74,14 +74,22 @@ const handleLogin = async (e) => {
     } else if (role === 'Admin') {
       navigate('/admin');
     } else {
-      navigate('/'); // fallback
+      navigate('/login'); // fallback
     }
 
   } catch (error) {
     console.error('Login failed:', error.response?.data || error.message);
-    alert('Login failed: Invalid credentials');
+
+    const errorMessage =
+      error.response?.data?.detail ||
+      error.response?.data?.non_field_errors?.[0] ||
+      error.response?.data?.error ||
+      'Login failed. Please try again.';
+
+    alert(`Login failed: ${errorMessage}`);
   }
 };
+
 
 
   const handleGoogleSSO = () => {

@@ -109,6 +109,7 @@ const LearnerRegistration = () => {
     agreeToTerms
   } = formData;
 
+  console.log("📦 Registration Payload:", formData);
   // Basic field validation
   if (!fullName || !email || !password || !confirmPassword || !phone || !learningGoals) {
     alert('Please fill in all required fields.');

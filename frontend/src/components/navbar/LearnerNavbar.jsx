@@ -1,3 +1,4 @@
+import axiosInstance from '../../axios'
 import { BellIcon, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
@@ -5,16 +6,29 @@ import { Link } from 'react-router-dom';
 const LearnerNavbar = () => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    // Clear stored user data
-    localStorage.removeItem('access');
-    localStorage.removeItem('refresh');
-    localStorage.removeItem('email');
-    localStorage.removeItem('role');
+const handleLogout = async () => {
+  try {
+    const refresh = localStorage.getItem('refresh');
+    console.log("🪙 Refresh token before logout:", refresh); 
 
-    // Redirect to login page
-    navigate('/login');
-  };
+    if (!refresh) {
+      alert("Logout failed: No refresh token found.");
+      return;
+    }
+
+    await axiosInstance.post('users/logout/', { refresh });
+
+    localStorage.clear();
+    navigate('/');
+  } catch (error) {
+    console.error("Logout failed:", error.response?.data || error.message);
+    alert("Logout failed. Please try again.");
+  }
+};
+
+
+
+
   return (
     <nav className="w-full h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-gray-50 text-indigo-900">
       <div className="flex items-center">
