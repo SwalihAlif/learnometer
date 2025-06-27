@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
@@ -11,9 +12,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth import get_user_model
 from .serializers import OTPVerifySerializer
+
+
+logger = logging.getLogger("users")
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -117,7 +121,33 @@ class UserProfileDetailUpdateView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return UserProfile.objects.get(user=self.request.user)
+    
 
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        logger.debug(f"Logout request received with refresh token: {refresh_token}")
+
+        if not refresh_token:
+            logger.warning("No refresh token received during logout.")
+            return Response({"error": "Refresh token is missing"}, status=400)
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            logger.info(f"User {request.user.email} logged out successfully.")
+            return Response({"detail": "Logout successful"}, status=205)
+
+        except TokenError as e:
+            # Token already blacklisted or malformed
+            logger.warning(f"Token already blacklisted or invalid: {str(e)}")
+            return Response({"detail": "Token already blacklisted"}, status=205)
+
+        except Exception as e:
+            logger.error(f"Unexpected error during logout: {str(e)}")
+            return Response({"error": "Something went wrong"}, status=400)
 
 
 

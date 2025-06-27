@@ -68,7 +68,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": False,  # You can change to True later
+    "BLACKLIST_AFTER_ROTATION": True,  # You can change to True later
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
@@ -212,3 +212,7 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-requested-with",
 ]
+
+
+# loggin config
+from .logging_config import LOGGING
