@@ -1,93 +1,565 @@
-import { useEffect, useState } from "react";
 import axiosInstance from '../../axios';
+import React, { useState, useEffect, useRef } from 'react';
+import { Upload, X, Clock, User, Globe, Tag, Camera, Save, Check, ChevronDown, Briefcase, Phone, Target, Calendar, Shield } from 'lucide-react';
 
 const LearnerProfile = () => {
-  const [profile, setProfile] = useState(null);
-  const [editData, setEditData] = useState({});
+  // State management
+  const [profile, setProfile] = useState({});
+  // Selected options
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedLanguages, setSelectedLanguages] = useState([]);
   const [profilePic, setProfilePic] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [profilePicPreview, setProfilePicPreview] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  
+  // Dropdown options (would be fetched from API)
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [availableLanguages] = useState(['English', 'Hindi', 'Spanish', 'French', 'German', 'Mandarin', 'Arabic']);
+  
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
+  const [languagesDropdownOpen, setLanguagesDropdownOpen] = useState(false);
+  
+  
+  // Refs
+  const fileInputRef = useRef(null);
+  
+
 
   useEffect(() => {
-    axiosInstance.get("users/profile/", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("access")}` }
-    }).then(res => {
-      setProfile(res.data);
-      setEditData(res.data);
-      setLoading(false);
-    }).catch(err => {
-      console.error("Error fetching learner profile:", err);
-      setLoading(false);
-    });
-  }, []);
+  const fetchProfile = async () => {
+    try {
+      const res = await axiosInstance.get("users/profile/", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access")}`,
+        },
+      });
 
-  const validate = () => {
-    const newErrors = {};
-    if (!editData.full_name) newErrors.full_name = "Full name is required";
-    if (!editData.phone) newErrors.phone = "Phone is required";
-    return newErrors;
-  };
+      const data = res.data;
 
-  const handleChange = (e) => {
-    setEditData({ ...editData, [e.target.name]: e.target.value });
-  };
+      setProfile(data);
 
-  const handleSave = () => {
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
+      // Optional: initialize other states like dropdowns or file
+      setSelectedCategories(data.preferred_categories || []);
+      setSelectedLanguages(data.languages_known || []);
+
+    } catch (err) {
+      console.error("Error fetching mentor profile:", err);
+      alert("Failed to load profile");
     }
+  };
 
+  fetchProfile();
+}, []);
+
+  
+// fetch categories
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("users/categories/");
+      setAvailableCategories(res.data); 
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  fetchCategories();
+}, []);
+
+  // Handle file upload
+  const handleFileChange = (file) => {
+    if (file && file.type.startsWith('image/')) {
+      setProfilePic(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setProfilePicPreview(e.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Drag and drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+  
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileChange(files[0]);
+    }
+  };
+  
+  // Multi-select dropdown handlers
+  const toggleCategory = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+  
+  const toggleLanguage = (language) => {
+    setSelectedLanguages(prev => 
+      prev.includes(language) 
+        ? prev.filter(l => l !== language)
+        : [...prev, language]
+    );
+  };
+  
+  const removeCategory = (category) => {
+    setSelectedCategories(prev => prev.filter(c => c !== category));
+  };
+  
+  const removeLanguage = (language) => {
+    setSelectedLanguages(prev => prev.filter(l => l !== language));
+  };
+  
+ 
+  // Handle form submission
+
+const handleSave = async () => {
+  setIsLoading(true);
+
+  try {
     const formData = new FormData();
-    for (let key in editData) {
-      if (Array.isArray(editData[key])) {
-        editData[key].forEach(val => formData.append(key, val));
-      } else if (editData[key] !== null && editData[key] !== undefined) {
-        formData.append(key, editData[key]);
-      }
-    }
-    if (profilePic) formData.append("profile_picture", profilePic);
 
-    axiosInstance.patch("users/profile/", formData, {
+    // Add editable profile fields
+    if (profile.full_name) formData.append("full_name", profile.full_name);
+    if (profile.phone) formData.append("phone", profile.phone);
+    if (profile.bio) formData.append("bio", profile.bio);
+    if (profile.learning_goals) formData.append("learning_goals", profile.learning_goals);
+    if (profile.linkedin_profile) formData.append("linkedin_profile", profile.linkedin_profile);
+    if (profile.portfolio_website) formData.append("portfolio_website", profile.portfolio_website);
+
+
+
+    // Append multi-select arrays
+    selectedCategories.forEach(category => {
+      formData.append("preferred_categories", category);
+    });
+
+    selectedLanguages.forEach(language => {
+      formData.append("languages_known", language);
+    });
+
+    // Append profile picture if selected
+    if (profilePic) {
+      formData.append("profile_picture", profilePic);
+    }
+
+    // Send PATCH request to update profile
+    const response = await axiosInstance.patch("users/profile/", formData, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("access")}`,
-        "Content-Type": "multipart/form-data",
+        "Content-Type": "multipart/form-data"
       }
-    }).then(res => {
-      alert("Profile updated successfully");
-      setErrors({});
-      setProfile(res.data);
-    }).catch(err => {
-      console.error("Error updating profile:", err);
     });
-  };
 
-  if (loading) return <p>Loading...</p>;
+    // Update local state after success
+    console.log("Profile updated successfully:", response.data);
+    alert("Profile updated successfully.");
+    setProfile(response.data);
 
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    alert("Failed to update profile. Please check console for errors.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-bold mb-4">Learner Profile</h2>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-gray-50 to-gray-100 py-8 px-4">
 
-      <div className="grid gap-4 max-w-xl">
-        <input name="full_name" value={editData.full_name || ''} onChange={handleChange} placeholder="Full Name" />
-        {errors.full_name && <p className="text-red-500 text-sm">{errors.full_name}</p>}
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-indigo-800 mb-2">Learner Profile</h1>
+          <p className="text-indigo-600 text-lg">Create your personalized learning profile</p>
+        </div>
+        
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Profile Picture Section */}
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-900 p-8 text-white">
 
-        <input name="phone" value={editData.phone || ''} onChange={handleChange} placeholder="Phone" />
-        {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
-
-        <textarea name="learning_goals" value={editData.learning_goals || ''} onChange={handleChange} placeholder="Learning Goals" />
-
-        <input name="preferred_categories" value={editData.preferred_categories?.join(", ") || ''} onChange={(e) => setEditData({ ...editData, preferred_categories: e.target.value.split(",") })} placeholder="Preferred Categories (comma-separated)" />
-
-        <input name="languages_known" value={editData.languages_known?.join(", ") || ''} onChange={(e) => setEditData({ ...editData, languages_known: e.target.value.split(",") })} placeholder="Languages Known (comma-separated)" />
-
-        <input type="file" onChange={(e) => setProfilePic(e.target.files[0])} />
-        {profile?.profile_picture && (
-          <img src={profile.profile_picture} alt="Current" className="w-24 h-24 rounded-full mt-2" />
-        )}
-
-        <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+            <div className="flex flex-col items-center">
+              <div className="relative mb-6">
+                {profilePicPreview || profile.profile_picture ? (
+                  <div className="relative">
+                    <img 
+                      src={profilePicPreview || profile.profile_picture} 
+                      alt="Profile" 
+                      className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                    <button
+                      onClick={() => {
+                        setProfilePic(null);
+                        setProfilePicPreview('');
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div 
+                    className={`w-32 h-32 rounded-full border-4 border-dashed border-white/50 flex items-center justify-center cursor-pointer transition-all duration-300 ${
+                      isDragOver ? 'border-amber-400 bg-white/10' : 'hover:border-white hover:bg-white/5'
+                    }`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="text-center">
+                      <Camera size={32} className="mx-auto mb-2 opacity-70" />
+                      <p className="text-sm opacity-70">Upload Photo</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileChange(e.target.files[0])}
+                className="hidden"
+              />
+              
+              <div
+                className={`border-2 border-dashed border-white/30 rounded-lg p-6 w-full max-w-md text-center cursor-pointer transition-all duration-300 ${
+                  isDragOver ? 'border-amber-400 bg-white/10' : 'hover:border-white/50 hover:bg-white/5'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={24} className="mx-auto mb-2 opacity-70" />
+                <p className="text-sm opacity-70">Drag & drop your profile picture here, or click to browse</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Form Content */}
+          <div className="p-8 space-y-8">
+            {/* Basic Information */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                  <User size={16} className="inline mr-2" />
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={profile.full_name}
+                  onChange={(e) => setProfile(prev => ({ ...prev, full_name: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30"
+                  placeholder="Enter your full name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={profile.email}
+                  readOnly
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                  placeholder="your.email@example.com"
+                />
+                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+              </div>
+            </div>
+            
+            {/* Phone and Experience */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                  <Phone size={16} className="inline mr-2" />
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={profile.phone}
+                  onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30"
+                  placeholder="+1 (555) 123-4567"
+                />
+              </div>
+            </div>
+            
+            {/* Bio and Learning Goals */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                  Professional Bio
+                </label>
+                <textarea
+                  value={profile.bio}
+                  onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
+                  rows={4}
+                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30 resize-none"
+                  placeholder="Tell us about your professional background and experience..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                  <Target size={16} className="inline mr-2" />
+                  Learning Goals
+                </label>
+                <textarea
+                  value={profile.learning_goals}
+                  onChange={(e) => setProfile(prev => ({ ...prev, learning_goals: e.target.value }))}
+                  rows={4}
+                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30 resize-none"
+                  placeholder="What are your learning objectives and goals..."
+                />
+              </div>
+            </div>
+            
+            {/* Social Links */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                  LinkedIn Profile
+                </label>
+                <input
+                  type="url"
+                  value={profile.linkedin_profile}
+                  onChange={(e) => setProfile(prev => ({ ...prev, linkedin_profile: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30"
+                  placeholder="https://linkedin.com/in/yourprofile"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                  Portfolio Website
+                </label>
+                <input
+                  type="url"
+                  value={profile.portfolio_website}
+                  onChange={(e) => setProfile(prev => ({ ...prev, portfolio_website: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30"
+                  placeholder="https://yourwebsite.com"
+                />
+              </div>
+            </div>
+            
+            {/* Read-only fields */}
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-2">
+                  Role
+                </label>
+                <input
+                  type="text"
+                  value={profile.role}
+                  readOnly
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-2">
+                  <Calendar size={16} className="inline mr-2" />
+                  Member Since
+                </label>
+                <input
+                  type="text"
+                  value={profile.created_at ? new Date(profile.created_at).toLocaleDateString() : ''}
+                  readOnly
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-2">
+                  <Shield size={16} className="inline mr-2" />
+                  Approval Status
+                </label>
+                <div className="flex items-center px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50">
+                  <div className={`w-3 h-3 rounded-full mr-2 ${profile.is_approved ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                  <span className="text-gray-600 text-sm">
+                    {profile.is_approved ? 'Approved' : 'Pending'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Categories Selection - Dropdown */}
+            <div className="relative">
+              <label className="block text-sm font-semibold text-indigo-800 mb-3">
+                <Tag size={16} className="inline mr-2" />
+                Preferred Categories
+              </label>
+              
+              {/* Selected Categories Display */}
+              {selectedCategories.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedCategories.map((category) => (
+                    <span
+                      key={category}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-indigo-700 text-white"
+                    >
+                      {category}
+                      <button
+                        onClick={() => removeCategory(category)}
+                        className="ml-2 hover:bg-indigo-800 rounded-full p-0.5"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              {/* Dropdown Button */}
+              <button
+                type="button"
+                onClick={() => setCategoriesDropdownOpen(!categoriesDropdownOpen)}
+                className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30 flex items-center justify-between text-left"
+              >
+                <span className="text-indigo-700">
+                  {selectedCategories.length === 0 ? 'Select categories...' : `${selectedCategories.length} selected`}
+                </span>
+                <ChevronDown 
+                  size={20} 
+                  className={`text-indigo-600 transition-transform duration-200 ${
+                    categoriesDropdownOpen ? 'transform rotate-180' : ''
+                  }`} 
+                />
+              </button>
+              
+              {/* Dropdown Menu */}
+              {categoriesDropdownOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white border-2 border-indigo-100 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {availableCategories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => toggleCategory(category)}
+                      className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors duration-150 flex items-center justify-between ${
+                        selectedCategories.includes(category) ? 'bg-indigo-50 text-indigo-700' : 'text-indigo-700'
+                      }`}
+                    >
+                      <span>{category}</span>
+                      {selectedCategories.includes(category) && (
+                        <Check size={16} className="text-indigo-700" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Languages Selection - Dropdown */}
+            <div className="relative">
+              <label className="block text-sm font-semibold text-indigo-800 mb-3">
+                <Globe size={16} className="inline mr-2" />
+                Languages Known
+              </label>
+              
+              {/* Selected Languages Display */}
+              {selectedLanguages.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedLanguages.map((language) => (
+                    <span
+                      key={language}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-amber-500 text-white"
+                    >
+                      {language}
+                      <button
+                        onClick={() => removeLanguage(language)}
+                        className="ml-2 hover:bg-amber-600 rounded-full p-0.5"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              {/* Dropdown Button */}
+              <button
+                type="button"
+                onClick={() => setLanguagesDropdownOpen(!languagesDropdownOpen)}
+                className="w-full px-4 py-3 border-2 border-indigo-100 rounded-lg focus:border-indigo-700 focus:ring-2 focus:ring-indigo-700/20 transition-all duration-200 bg-indigo-50/30 flex items-center justify-between text-left"
+              >
+                <span className="text-indigo-700">
+                  {selectedLanguages.length === 0 ? 'Select languages...' : `${selectedLanguages.length} selected`}
+                </span>
+                <ChevronDown 
+                  size={20} 
+                  className={`text-indigo-600 transition-transform duration-200 ${
+                    languagesDropdownOpen ? 'transform rotate-180' : ''
+                  }`} 
+                />
+              </button>
+              
+              {/* Dropdown Menu */}
+              {languagesDropdownOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white border-2 border-indigo-100 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {availableLanguages.map((language) => (
+                    <button
+                      key={language}
+                      type="button"
+                      onClick={() => toggleLanguage(language)}
+                      className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors duration-150 flex items-center justify-between ${
+                        selectedLanguages.includes(language) ? 'bg-indigo-50 text-amber-600' : 'text-indigo-700'
+                      }`}
+                    >
+                      <span>{language}</span>
+                      {selectedLanguages.includes(language) && (
+                        <Check size={16} className="text-amber-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Save Button */}
+            <div className="flex justify-center pt-6">
+              <button
+                onClick={handleSave}
+                disabled={isLoading}
+                className={`px-8 py-4 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${
+                  isLoading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-indigo-700 to-indigo-700 hover:from-indigo-800 hover:to-indigo-800 hover:shadow-xl'
+                }`}
+              >
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Saving...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Save size={18} />
+                    <span>Save Profile</span>
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

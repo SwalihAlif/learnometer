@@ -1,6 +1,7 @@
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Toast from "./components/common/Toast";
+import ConfirmDialog from './components/common/ConfirmDialog';
 
 // Layouts
 import AdminLayout from "./layouts/AdminLayout";
@@ -66,7 +67,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
         </Routes>
-
+        <ConfirmDialog />
         <Toast />
       </BrowserRouter>
     </GoogleOAuthProvider>

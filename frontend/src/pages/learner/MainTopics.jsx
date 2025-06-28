@@ -2,11 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../axios';
 import { Plus, Eye, Edit3, Trash2, FileText, Brain, Calendar } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
+import { showDialog } from '../../redux/slices/confirmDialogSlice'
+import { fetchPaginatedData } from '../../redux/slices/paginationSlice';
+import Pagination from '../../components/common/Pagination';
 
 const MainTopics = () => {
   const navigate = useNavigate();
   const { courseId } = useParams();
-  const [topics, setTopics] = useState([]);
+  const { results: topics, page, count, loading } = useSelector((state) => state.pagination);
+
+  const dispatch = useDispatch();
+
   const [newTopic, setNewTopic] = useState({
     title: '',
     description: ''
@@ -37,79 +44,107 @@ const MainTopics = () => {
     }
   }, [courseId]);
 
-  useEffect(() => {
-    const fetchTopics = async () => {
-      try {
-        const res = await axiosInstance.get(`topics/main-topic/?course_id=${courseId}`);
+useEffect(() => {
+  if (courseId) {
+    dispatch(
+      fetchPaginatedData({
+        url: "topics/main-topic",
+        page: 1,
+        queryParams: { course_id: courseId },
+      })
+    );
+  }
+}, [dispatch, courseId]);
 
-        console.log("Fetched Topics:", res.data);
+const handlePageChange = (newPage) => {
+  dispatch(
+    fetchPaginatedData({
+      url: "topics/main-topic",
+      page: newPage,
+      queryParams: { course_id: courseId },
+    })
+  );
+};
 
-        setTopics(res.data.results);
-      } catch (err) {
-        console.error('Failed to fetch topics:', err);
-      }
-    };
 
-    fetchTopics();
-  }, [courseId]);
 
-  const handleAddTopic = async (e) => {
-    e.preventDefault();
-    if (newTopic.title.trim() && newTopic.description.trim()) {
-      try {
-        const res = await axiosInstance.post('topics/main-topic/', {
-          title: newTopic.title,
-          description: newTopic.description,
-          course: courseId,
-        });
+const handleAddTopic = async (e) => {
+  e.preventDefault();
 
-        const topic = {
-          ...res.data,
-          subtopicsCount: 0, // 🔹 default value
-          createdDate: new Date(res.data.created_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          }),
-        };
-
-        setTopics((prev) => [...prev, topic]);
-        setNewTopic({ title: '', description: '' });
-      } catch (err) {
-        console.error('Failed to create topic:', err);
-      }
-    }
-  };
-
-  const handleUpdateTopic = async () => {
+  if (newTopic.title.trim() && newTopic.description.trim()) {
     try {
-      const { id, title, description } = editModal;
-      const res = await axiosInstance.put(`topics/main-topic/${id}/`, {
-        title,
-        description,
-        course: courseId, // 🔁 Required for update
+      await axiosInstance.post('topics/main-topic/', {
+        title: newTopic.title,
+        description: newTopic.description,
+        course: courseId,
       });
 
-      setTopics((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, title, description } : t))
-      );
+      // Re-fetch paginated topics from the server
+      dispatch(fetchPaginatedData({
+        url: 'topics/main-topic',
+        page, // current page from Redux
+        queryParams: { course_id: courseId },
+      }));
 
-      setEditModal({ visible: false, id: null, title: '', description: '' });
+      // Clear the form inputs
+      setNewTopic({ title: '', description: '' });
     } catch (err) {
-      console.error('Failed to update topic:', err);
+      console.error('Failed to create topic:', err);
     }
-  };
+  }
+};
+
+
+const handleUpdateTopic = async () => {
+  try {
+    const { id, title, description } = editModal;
+
+    await axiosInstance.put(`topics/main-topic/${id}/`, {
+      title,
+      description,
+      course: courseId, // required field
+    });
+
+    // ✅ Refresh the updated list of topics from the server
+    dispatch(fetchPaginatedData({
+      url: 'topics/main-topic',
+      page, // from Redux state
+      queryParams: { course_id: courseId },
+    }));
+
+    // 🔄 Reset modal state
+    setEditModal({ visible: false, id: null, title: '', description: '' });
+  } catch (err) {
+    console.error('Failed to update topic:', err);
+  }
+};
 
 
 
-  const handleDeleteTopic = async (id) => {
-    try {
-      await axiosInstance.delete(`topics/main-topic/${id}/`);
-      setTopics((prev) => prev.filter(topic => topic.id !== id));
-    } catch (err) {
-      console.error('Failed to delete topic:', err);
+const handleDeleteTopic = (id) => {
+  dispatch(showDialog({
+    title: "Delete Main-Topic?",
+    message: "Are you sure you want to permanently delete this main-topic?",
+    onConfirm: async () => {
+      try {
+        await axiosInstance.delete(`topics/main-topic/${id}/`);
+
+        // 🔄 Re-fetch topics after deletion to keep Redux in sync
+        dispatch(fetchPaginatedData({
+          url: 'topics/main-topic',
+          page, // current page from Redux
+          queryParams: { course_id: courseId },
+        }));
+      } catch (err) {
+        console.error('Failed to delete topic:', err);
+      }
+    },
+    onCancel: () => {
+      console.log("Topic delete cancelled");
     }
-  };
+  }));
+};
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -294,6 +329,14 @@ const MainTopics = () => {
           </div>
         </div>
       )}
+
+
+<Pagination
+  page={page}
+  totalPages={Math.ceil(count / 10)}
+  onPageChange={handlePageChange}
+/>
+
 
     </div>
   );

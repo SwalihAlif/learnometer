@@ -2,11 +2,15 @@ import axiosInstance from '../../axios';
 import { useEffect, useState } from 'react';
 import { BookOpen, Plus, Edit, Trash2, Users, Eye, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { showToast } from '../../redux/slices/toastSlice';
+import { showDialog } from '../../redux/slices/confirmDialogSlice';
+import { fetchPaginatedData } from '../../redux/slices/paginationSlice';
+import Pagination from '../../components/common/Pagination';
+
 
 const LearnerMyCourses = () => {
-  const [courses, setCourses] = useState([]);
+  const { results: courses, count, page, loading } = useSelector((state) => state.pagination);
   const [newCourse, setNewCourse] = useState({
     title: '',
     category: '',
@@ -26,20 +30,13 @@ const LearnerMyCourses = () => {
 
   const dispatch = useDispatch();
 
-  // Fetch existing courses on page load
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const response = await axiosInstance.get('courses/');
-        // Extract the array from 'results' 
-        setCourses(response.data.results);
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-      }
-    };
+    dispatch(fetchPaginatedData({ url: 'courses', page: 1 }));
+  }, [dispatch]);
 
-    fetchCourses();
-  }, []);
+  const handlePageChange = (newPage) => {
+    dispatch(fetchPaginatedData({ url: 'courses', page: newPage }));
+  };
 
 
 
@@ -84,7 +81,6 @@ const LearnerMyCourses = () => {
 
         const res = await axiosInstance.post('courses/', payload);
 
-        setCourses(prev => [...prev, res.data]);
         setNewCourse({ title: '', category: '', description: '' });
         setCategorySearch('');
         setShowCategorySuggestions(false);
@@ -135,14 +131,23 @@ const LearnerMyCourses = () => {
 
 
 
-  const handleDeleteCourse = async (courseId) => {
-    try {
-      await axiosInstance.delete(`courses/${courseId}/`);
-      setCourses(prev => prev.filter(course => course.id !== courseId));
-    } catch (err) {
-      console.error('Error deleting course:', err);
+ const handleDeleteCourse = (courseId) => {
+  dispatch(showDialog({
+    title: "Delete Course?",
+    message: "Are you sure you want to permanently delete this course?",
+    onConfirm: async () => {
+      try {
+        await axiosInstance.delete(`courses/${courseId}/`);
+        setCourses(prev => prev.filter(course => course.id !== courseId));
+      } catch (err) {
+        console.error('Error deleting course:', err);
+      }
+    },
+    onCancel: () => {
+      console.log("Course delete cancelled");
     }
-  };
+  }));
+};
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -359,6 +364,11 @@ const LearnerMyCourses = () => {
         </div>
 
       </div>
+                <Pagination
+            page={page}
+            totalPages={Math.ceil(count / 10)}
+            onPageChange={handlePageChange}
+          />
     </div>
   );
 

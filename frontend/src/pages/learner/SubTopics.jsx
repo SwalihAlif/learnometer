@@ -1,109 +1,188 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axiosInstance from '../../axios';
-import { Check, Plus, Edit, Trash2, BookOpen, TrendingUp } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { useSelector, useDispatch } from 'react-redux';
+import { showDialog } from '../../redux/slices/confirmDialogSlice';
+import { fetchPaginatedData } from '../../redux/slices/paginationSlice';
+import Pagination from '../../components/common/Pagination';
+import {
+  Check, Plus, Edit, Trash2, BookOpen, TrendingUp,
+} from 'lucide-react';
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+} from 'recharts';
 
 const SubTopics = () => {
   const { mainTopicId } = useParams();
-  const [subtopics, setSubtopics] = useState([]);
+  const dispatch = useDispatch();
 
+  // Redux: subtopics (paginated list)
+  const { results: subtopics, page, count, loading } = useSelector((state) => state.pagination);
+
+  // Local state: for form inputs & chart
   const [newSubtopic, setNewSubtopic] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [chartData, setChartData] = useState([]);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const remainingCount = totalCount - completedCount;
+
+  // 1. Fetch paginated subtopics for list
+  useEffect(() => {
+    if (mainTopicId) {
+      dispatch(fetchPaginatedData({
+        url: 'topics/sub-topics',
+        page: 1,
+        queryParams: { main_topic_id: mainTopicId },
+      }));
+    }
+  }, [dispatch, mainTopicId]);
+
+  const handlePageChange = (newPage) => {
+    dispatch(fetchPaginatedData({
+      url: 'topics/sub-topics',
+      page: newPage,
+      queryParams: { main_topic_id: mainTopicId },
+    }));
+  };
+
+  // 2. Fetch ALL subtopics for chart calculation
+//   const fetchProgressMetrics = async () => {
+//     try {
+//       const res = await axiosInstance.get(`topics/sub-topics/?main_topic_id=${mainTopicId}&limit=1000&offset=0`);
+//       const allSubtopics = res.data.results || [];
+//       const completed = allSubtopics.filter(item => item.completed).length;
+
+//       setCompletedCount(completed);
+//       setTotalCount(allSubtopics.length);
+//       setChartData([
+//         { name: 'Completed', value: completed, color: '#16A34A' },
+//         { name: 'Remaining', value: allSubtopics.length - completed, color: '#9CA3AF' },
+//       ]);
+//       console.log("Total from allSubtopics.length:", allSubtopics.length);
+// console.log("Total from response.count:", res.data.count); // just in case backend provides it
+
+//     } catch (err) {
+//       console.error('Failed to fetch subtopics for chart:', err);
+//     }
+//   };
+
+  const fetchProgressMetrics = async () => {
+  try {
+    const res = await axiosInstance.get(`topics/progress/subtopics/?main_topic_id=${mainTopicId}`);
+    const completed = res.data.completed;
+    const total = res.data.total;
+
+    setCompletedCount(completed);
+    setTotalCount(total);
+    setChartData([
+      { name: 'Completed', value: completed, color: '#16A34A' },
+      { name: 'Remaining', value: total - completed, color: '#9CA3AF' },
+    ]);
+    console.log("Total from allSubtopics.length:", total);
+console.log("Total from response.count:", completed);
+  } catch (err) {
+    console.error('Failed to fetch progress metrics:', err);
+  }
+};
+
+
 
   useEffect(() => {
-    const fetchSubtopics = async () => {
-      try {
-        const res = await axiosInstance.get(`topics/sub-topics/?main_topic_id=${mainTopicId}`);
-        setSubtopics(res.data.results || []);
-      } catch (err) {
-        console.error('Error fetching subtopics:', err);
-      }
-    };
-
-    if (mainTopicId) fetchSubtopics();
+    if (mainTopicId) {
+      fetchProgressMetrics();
+    }
   }, [mainTopicId]);
 
+  // === CRUD Actions ===
 
   const toggleCompletion = async (id, currentStatus) => {
-    const updatedStatus = !currentStatus;
-
     try {
-      const res = await axiosInstance.patch(`topics/sub-topics/${id}/`, {
-        completed: updatedStatus
+      await axiosInstance.patch(`topics/sub-topics/${id}/`, {
+        completed: !currentStatus,
       });
 
-      setSubtopics(prev =>
-        prev.map(subtopic =>
-          subtopic.id === id
-            ? { ...subtopic, completed: res.data.completed }
-            : subtopic
-        )
-      );
+      dispatch(fetchPaginatedData({
+        url: 'topics/sub-topics',
+        page,
+        queryParams: { main_topic_id: mainTopicId },
+      }));
+
+      fetchProgressMetrics();
     } catch (err) {
-      console.error(
-        `Failed to ${currentStatus ? 'unmark' : 'mark'} subtopic as complete:`,
-        err
-      );
+      console.error('Failed to toggle completion:', err);
     }
   };
 
-
   const addSubtopic = async () => {
-    if (newSubtopic.trim()) {
-      try {
-        const res = await axiosInstance.post('topics/sub-topics/', {
-          title: newSubtopic.trim(),
-          main_topic: mainTopicId,
-          completed: false, // optional: backend can default this
-        });
+    if (!newSubtopic.trim()) return;
+    try {
+      await axiosInstance.post('topics/sub-topics/', {
+        title: newSubtopic.trim(),
+        main_topic: mainTopicId,
+        completed: false,
+      });
 
-        setSubtopics(prev => [...prev, res.data]);  // append new subtopic from backend
-        setNewSubtopic('');
-        setShowAddForm(false);
-      } catch (err) {
-        console.error('Failed to add subtopic:', err);
-      }
+      dispatch(fetchPaginatedData({
+        url: 'topics/sub-topics',
+        page,
+        queryParams: { main_topic_id: mainTopicId },
+      }));
+
+      fetchProgressMetrics();
+      setNewSubtopic('');
+      setShowAddForm(false);
+    } catch (err) {
+      console.error('Failed to add subtopic:', err);
     }
   };
 
   const updateSubtopic = async (id, updatedTitle) => {
     if (!updatedTitle.trim()) return;
-
     try {
-      const res = await axiosInstance.patch(`topics/sub-topics/${id}/`, {
+      await axiosInstance.patch(`topics/sub-topics/${id}/`, {
         title: updatedTitle.trim(),
       });
 
-      setSubtopics(prev =>
-        prev.map(subtopic =>
-          subtopic.id === id ? { ...subtopic, title: res.data.title } : subtopic
-        )
-      );
+      dispatch(fetchPaginatedData({
+        url: 'topics/sub-topics',
+        page,
+        queryParams: { main_topic_id: mainTopicId },
+      }));
+
+      fetchProgressMetrics();
     } catch (err) {
       console.error('Failed to update subtopic:', err);
     }
   };
 
+  const deleteSubtopic = (id) => {
+    dispatch(showDialog({
+      title: "Delete Sub-Topic?",
+      message: "Are you sure you want to permanently delete this sub-topic?",
+      onConfirm: async () => {
+        try {
+          await axiosInstance.delete(`topics/sub-topics/${id}/`);
 
-  const deleteSubtopic = async (id) => {
-    try {
-      await axiosInstance.delete(`topics/sub-topics/${id}/`);
-      setSubtopics(prev => prev.filter(subtopic => subtopic.id !== id));
-    } catch (err) {
-      console.error('Failed to delete subtopic:', err);
-    }
+          dispatch(fetchPaginatedData({
+            url: 'topics/sub-topics',
+            page,
+            queryParams: { main_topic_id: mainTopicId },
+          }));
+
+          fetchProgressMetrics();
+        } catch (err) {
+          console.error('Failed to delete subtopic:', err);
+        }
+      },
+      onCancel: () => {
+        console.log("Delete cancelled");
+      }
+    }));
   };
 
-
-  const completedCount = subtopics.filter(s => s.completed).length;
-  const totalCount = subtopics.length;
-  const remainingCount = totalCount - completedCount;
-
-  const chartData = [
-    { name: 'Completed', value: completedCount, color: '#10B981' },
-    { name: 'Remaining', value: remainingCount, color: '#E5E7EB' }
-  ];
+  
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-4">
@@ -222,6 +301,12 @@ const SubTopics = () => {
               </div>
             ))}
           </div>
+
+                <Pagination
+        page={page}
+        totalPages={Math.ceil(count / 10)}
+        onPageChange={handlePageChange}
+      />
         </div>
 
         {/* Progress Chart Section */}
