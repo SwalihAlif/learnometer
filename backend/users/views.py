@@ -220,6 +220,34 @@ class UserProfileDetailUpdateView(generics.RetrieveUpdateAPIView):
         response = super().update(request, *args, **kwargs)
         logger.info(f"UserProfile updated successfully for user: {request.user.email}")
         return response
+    
+
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+class CategoryListView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    CATEGORIES = [
+        "Programming & Technology",
+        "Academics & School Subjects",
+        "Languages",
+        "Career & Soft Skills",
+        "Arts & Creativity",
+        "Music & Performing Arts",
+        "Lifestyle & Hobbies",
+        "Self-Development",
+        "Science & Research",
+        "Professional Certifications",
+        "Competitive Exam Preparation"
+    ]
+
+    def get(self, request, *args, **kwargs):
+        return Response(self.CATEGORIES)
+
+
+
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]

@@ -9,7 +9,8 @@ from users.views import (
     LogoutView, 
     GoogleLoginView, 
     PasswordResetConfirmView,
-    ForgotPasswordView 
+    ForgotPasswordView, 
+    CategoryListView,
 )
 from .views import (
     AdminLearnerListCreateView,
@@ -34,6 +35,7 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
     path('reset-password/<uidb64>/<token>/', PasswordResetConfirmView.as_view(), name='reset-password-confirm'),
+    path('categories/', CategoryListView.as_view(), name='category-list'),
     
     
     # admin
