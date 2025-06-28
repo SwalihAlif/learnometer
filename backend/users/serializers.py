@@ -4,104 +4,63 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import UserProfile, Role
 
-User = get_user_model()
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['email'] = user.email
+        token['role'] = user.role.name if user.role else None
+        logger.debug(f"Token created for user: {user.email} with role: {token['role']}")
+        return token
+
     def validate(self, attrs):
-        email = attrs.get('email')
-        password = attrs.get('password')
-        logger.info(f"Login attempt with data: {email}")
-
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            logger.warning(f"Login failed — user not found: {email}")
-            raise serializers.ValidationError("User with this email does not exist.")
-
-        if not user.check_password(password):
-            logger.warning(f"Login failed — incorrect password for: {email}")
-            raise serializers.ValidationError("Incorrect password.")
-
-        if not user.is_active:
-            logger.warning(f"Login failed — inactive user: {email}")
-            raise serializers.ValidationError("Your account is not verified.")
-
-        # If all good, get token via super
         data = super().validate(attrs)
-        data['email'] = user.email
-        data['role'] = user.role.name if user.role else None
 
-        logger.info(f"Login successful for user: {user.email}")
+        if not self.user.is_active:
+            logger.warning(f"Inactive user attempted login: {self.user.email}")
+            raise serializers.ValidationError("Your account is not verified. Please verify the OTP sent to your email.")
+
+        logger.info(f"User login validated: {self.user.email}")
+        data['email'] = self.user.email
+        data['role'] = self.user.role.name if self.user.role else None
         return data
-
-
-
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
-    profile_picture = serializers.ImageField(required=False)
     phone = serializers.CharField(required=False)
-    bio = serializers.CharField(required=False)
-    experience_years = serializers.IntegerField(required=False)
-    preferred_categories = serializers.ListField(child=serializers.CharField(), required=False)
-    languages_known = serializers.ListField(child=serializers.CharField(), required=False)
-    learning_goals = serializers.CharField(required=False)
-
-    # Mentor-specific fields
-    linkedin_profile = serializers.URLField(required=False)
-    portfolio_website = serializers.URLField(required=False)
-    availability_schedule = serializers.JSONField(required=False)
 
     class Meta:
         model = User
-        fields = [
-            "email", "password", "confirm_password",
-            "full_name", "phone", "profile_picture", "bio", "experience_years",
-            "preferred_categories", "languages_known", "learning_goals",
-            "linkedin_profile", "portfolio_website", "availability_schedule"
-        ]
+        fields = ["email", "password", "confirm_password", "full_name", "phone"]
         extra_kwargs = {
             'password': {'write_only': True}
         }
 
     def validate(self, attrs):
         if attrs['password'] != attrs['confirm_password']:
-            logger.warning(f"Password mismatch for email: {attrs.get('email')}")
+            logger.warning("Password mismatch during registration attempt")
             raise serializers.ValidationError("Passwords do not match.")
+        logger.debug(f"Registration data validated for email: {attrs.get('email')}")
         return attrs
 
     def create(self, validated_data):
-        logger.debug(f"Validated data: {validated_data}")  # ✅ Added logging line
-
         validated_data.pop('confirm_password', None)
         full_name = validated_data.pop('full_name', None)
-
         profile_fields = {
             'full_name': full_name,
             'phone': validated_data.pop('phone', None),
-            'profile_picture': validated_data.pop('profile_picture', None),
-            'bio': validated_data.pop('bio', None),
-            'experience_years': validated_data.pop('experience_years', None),
-            'preferred_categories': validated_data.pop('preferred_categories', []),
-            'languages_known': validated_data.pop('languages_known', []),
-            'learning_goals': validated_data.pop('learning_goals', ''),
-            'linkedin_profile': validated_data.pop('linkedin_profile', ''),
-            'portfolio_website': validated_data.pop('portfolio_website', ''),
-            'availability_schedule': validated_data.pop('availability_schedule', {}),
         }
 
-        try:
-            role = self.context.get("role")
-            user = User.objects.create_user(role=role, **validated_data)
-            UserProfile.objects.create(user=user, **profile_fields)
-            logger.info(f"User created successfully: {user.email} | Role: {role}")
-            return user
-        except Exception as e:
-            logger.error(f"User creation failed for {validated_data.get('email')}: {str(e)}")
-            raise e
+        role = self.context.get("role")
+        user = User.objects.create_user(role=role, **validated_data)
+        UserProfile.objects.create(user=user, **profile_fields)
+        logger.info(f"New user created: {user.email} with role: {role}")
+        return user
 
 
 class OTPVerifySerializer(serializers.Serializer):
@@ -109,46 +68,62 @@ class OTPVerifySerializer(serializers.Serializer):
     code = serializers.CharField()
 
     def validate(self, attrs):
-        logger.debug(f"OTP verification attempt for email: {attrs.get('email')}, code: {attrs.get('code')}")
+        logger.debug(f"OTP verification requested for: {attrs.get('email')}")
         return attrs
 
 
+
+from rest_framework import serializers
+from .models import UserProfile
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 class UserProfileSerializer(serializers.ModelSerializer):
+    # Read-only user details
     email = serializers.EmailField(source='user.email', read_only=True)
     role = serializers.CharField(source='user.role.name', read_only=True)
+    created_at = serializers.DateTimeField(source='user.created_at', read_only=True)
 
-    profile_picture = serializers.ImageField(required=False)
+    # Editable profile fields
     full_name = serializers.CharField(required=False)
+    profile_picture = serializers.ImageField(required=False)
     phone = serializers.CharField(required=False)
     bio = serializers.CharField(required=False, allow_blank=True)
-    experience_years = serializers.IntegerField(required=False)
-    preferred_categories = serializers.ListField(child=serializers.CharField(), required=False)
-    languages_known = serializers.ListField(child=serializers.CharField(), required=False)
+    
+    preferred_categories = serializers.ListField(
+        child=serializers.CharField(), required=False
+    )
+    languages_known = serializers.ListField(
+        child=serializers.CharField(), required=False
+    )
     learning_goals = serializers.CharField(required=False, allow_blank=True)
+
+    experience_years = serializers.IntegerField(required=False)
     linkedin_profile = serializers.URLField(required=False, allow_blank=True)
     portfolio_website = serializers.URLField(required=False, allow_blank=True)
     availability_schedule = serializers.JSONField(required=False)
-    created_at = serializers.DateTimeField(source='user.created_at', read_only=True)
+    is_approved = serializers.BooleanField(required=False)
 
     class Meta:
         model = UserProfile
         fields = [
-            'email', 'role', 'full_name', 'profile_picture', 'phone', 'bio',
-            'experience_years', 'preferred_categories', 'languages_known',
-            'learning_goals', 'linkedin_profile', 'portfolio_website',
-            'availability_schedule', 'created_at'
+            'email', 'role', 'created_at',
+            'full_name', 'profile_picture', 'phone', 'bio',
+            'preferred_categories', 'languages_known', 'learning_goals',
+            'experience_years', 'linkedin_profile', 'portfolio_website',
+            'availability_schedule', 'is_approved'
         ]
 
     def update(self, instance, validated_data):
-        logger.debug(f"UserProfile update started for user: {instance.user.email}")
-        logger.debug(f"Validated profile update data: {validated_data}")
+        user_data = validated_data.pop('user', {})  # in case nested write allowed later
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
 
-        logger.info(f"UserProfile updated successfully for user: {instance.user.email}")
+        instance.save()
         return instance
+
 
 
 
@@ -185,50 +160,32 @@ class AdminLearnerCRUDSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         userprofile_data = validated_data.pop('userprofile', {})
         password = validated_data.pop('password', None)
+        
+        role = Role.objects.get(name='Learner')
+        user = User.objects.create(role=role, is_active=True, **validated_data)
 
-        logger.debug(f"Admin creating learner with data: {validated_data}")
-        logger.debug(f"Associated profile data: {userprofile_data}")
+        if password:
+            user.set_password(password)
+        user.save()
 
-        try:
-            role = Role.objects.get(name='Learner')
-            user = User.objects.create(role=role, is_active=True, **validated_data)
-
-            if password:
-                user.set_password(password)
-            user.save()
-
-            UserProfile.objects.create(user=user, **userprofile_data)
-
-            logger.info(f"Admin created learner: {user.email}")
-            return user
-        except Exception as e:
-            logger.error(f"Failed to create learner: {validated_data.get('email')} | Error: {str(e)}")
-            raise e
+        UserProfile.objects.create(user=user, **userprofile_data)
+        return user
 
     def update(self, instance, validated_data):
         userprofile_data = validated_data.pop('userprofile', {})
 
-        logger.debug(f"Admin updating learner: {instance.email}")
-        logger.debug(f"Validated update data: {validated_data}")
-        logger.debug(f"Profile update data: {userprofile_data}")
+        instance.email = validated_data.get('email', instance.email)
+        if 'password' in validated_data and validated_data['password']:
+            instance.set_password(validated_data['password'])
+        instance.save()
 
-        try:
-            instance.email = validated_data.get('email', instance.email)
-            if 'password' in validated_data and validated_data['password']:
-                instance.set_password(validated_data['password'])
-            instance.save()
+        # Avoid RelatedObjectDoesNotExist
+        profile, created = UserProfile.objects.get_or_create(user=instance)
+        for key, value in userprofile_data.items():
+            setattr(profile, key, value)
+        profile.save()
 
-            # Avoid RelatedObjectDoesNotExist
-            profile, created = UserProfile.objects.get_or_create(user=instance)
-            for key, value in userprofile_data.items():
-                setattr(profile, key, value)
-            profile.save()
-
-            logger.info(f"Admin updated learner: {instance.email}")
-            return instance
-        except Exception as e:
-            logger.error(f"Failed to update learner: {instance.email} | Error: {str(e)}")
-            raise e
+        return instance
 
 
 
@@ -267,50 +224,33 @@ class AdminMentorCRUDSerializer(serializers.ModelSerializer):
         userprofile_data = validated_data.pop('userprofile', {})
         password = validated_data.pop('password', None)
 
-        logger.debug(f"Admin creating mentor with data: {validated_data}")
-        logger.debug(f"Associated mentor profile data: {userprofile_data}")
+        # Set Mentor role
+        role = Role.objects.get(name='Mentor')
+        user = User.objects.create(role=role, is_active=True, **validated_data)
+        if password:
+            user.set_password(password)
+        user.save()
 
-        try:
-            role = Role.objects.get(name='Mentor')
-            user = User.objects.create(role=role, is_active=True, **validated_data)
-
-            if password:
-                user.set_password(password)
-            user.save()
-
-            UserProfile.objects.create(user=user, **userprofile_data)
-
-            logger.info(f"Admin created mentor: {user.email}")
-            return user
-        except Exception as e:
-            logger.error(f"Failed to create mentor: {validated_data.get('email')} | Error: {str(e)}")
-            raise e
+        # Create profile
+        UserProfile.objects.create(user=user, **userprofile_data)
+        return user
 
     def update(self, instance, validated_data):
         userprofile_data = validated_data.pop('userprofile', {})
 
-        logger.debug(f"Admin updating mentor: {instance.email}")
-        logger.debug(f"Validated update data: {validated_data}")
-        logger.debug(f"Mentor profile update data: {userprofile_data}")
+        # Update user fields
+        instance.email = validated_data.get('email', instance.email)
+        if 'password' in validated_data and validated_data['password']:
+            instance.set_password(validated_data['password'])
+        instance.save()
 
-        try:
-            # Update user fields
-            instance.email = validated_data.get('email', instance.email)
-            if 'password' in validated_data and validated_data['password']:
-                instance.set_password(validated_data['password'])
-            instance.save()
+        # Get or create user profile
+        profile, created = UserProfile.objects.get_or_create(user=instance)
+        for key, value in userprofile_data.items():
+            setattr(profile, key, value)
+        profile.save()
 
-            # Get or create user profile
-            profile, created = UserProfile.objects.get_or_create(user=instance)
-            for key, value in userprofile_data.items():
-                setattr(profile, key, value)
-            profile.save()
-
-            logger.info(f"Admin updated mentor: {instance.email}")
-            return instance
-        except Exception as e:
-            logger.error(f"Failed to update mentor: {instance.email} | Error: {str(e)}")
-            raise e
+        return instance
 
 
 
