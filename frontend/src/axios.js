@@ -49,7 +49,7 @@ axiosInstance.interceptors.response.use(
         // Optionally: redirect to login or clear storage
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
-        window.location.href = '/login'; // or your login route
+        window.location.href = '/'; // or your login route
         return Promise.reject(refreshError);
       }
     }

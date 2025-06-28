@@ -19,7 +19,7 @@ const LearnometerLogin = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -28,74 +28,69 @@ const LearnometerLogin = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-const handleLogin = async (e) => {
-  e.preventDefault();
-  if (!validateForm()) return;
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
-  try {
-    const response = await axiosInstance.post('users/token/', {
-      email: formData.email,
-      password: formData.password
-    });
+    try {
+      const response = await axiosInstance.post('users/token/', {
+        email: formData.email,
+        password: formData.password
+      });
 
-    console.log('Login success:', response.data);
+      console.log('Login success:', response.data);
 
-    // Save tokens
-    localStorage.setItem('access', response.data.access);
-    localStorage.setItem('refresh', response.data.refresh);
+      // Save tokens
+      localStorage.setItem('access', response.data.access);
+      localStorage.setItem('refresh', response.data.refresh);
 
-    // Save user info
-    localStorage.setItem('email', response.data.email);
-    localStorage.setItem('role', response.data.role);
+      // Save user info
+      localStorage.setItem('email', response.data.email);
+      localStorage.setItem('role', response.data.role);
 
-    // Redirect user based on role
-    const role = response.data.role;
-    if (role === 'Learner') {
-      navigate('/learner');
-    } else if (role === 'Mentor') {
-      navigate('/mentor');
-    } else if (role === 'Admin') {
-      navigate('/admin');
-    } else {
-      navigate('/login'); // fallback
+      // Redirect user based on role
+      const role = response.data.role;
+      if (role === 'Learner') {
+        navigate('/learner');
+      } else if (role === 'Mentor') {
+        navigate('/mentor');
+      } else if (role === 'Admin') {
+        navigate('/admin');
+      } else {
+        navigate('/'); // fallback
+      }
+
+    } catch (error) {
+      console.error('Login failed:', error.response?.data || error.message);
+
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.non_field_errors?.[0] ||
+        error.response?.data?.error ||
+        'Login failed. Please try again.';
+
+      alert(`Login failed: ${errorMessage}`);
     }
-
-  } catch (error) {
-    console.error('Login failed:', error.response?.data || error.message);
-
-    const errorMessage =
-      error.response?.data?.detail ||
-      error.response?.data?.non_field_errors?.[0] ||
-      error.response?.data?.error ||
-      'Login failed. Please try again.';
-
-    alert(`Login failed: ${errorMessage}`);
-  }
-};
-
-
-
-  const handleGoogleSSO = () => {
-    console.log('Google SSO login');
-    // Handle Google SSO logic here
   };
+
+
 
   const handleRegister = (role) => {
     console.log(`Register as ${role}`);
@@ -116,23 +111,23 @@ const handleLogin = async (e) => {
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-white bg-opacity-10 rounded-full animate-pulse"></div>
-          <div className="absolute top-1/3 -right-20 w-60 h-60 bg-white bg-opacity-5 rounded-full animate-bounce" style={{animationDuration: '3s'}}></div>
-          <div className="absolute bottom-10 left-1/4 w-32 h-32 bg-white bg-opacity-10 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+          <div className="absolute top-1/3 -right-20 w-60 h-60 bg-white bg-opacity-5 rounded-full animate-bounce" style={{ animationDuration: '3s' }}></div>
+          <div className="absolute bottom-10 left-1/4 w-32 h-32 bg-white bg-opacity-10 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
         </div>
 
         <div className="relative z-10 text-center max-w-md">
           {/* Dynamic Icons */}
           <div className="flex justify-center items-center space-x-4 mb-8">
-            <div className="animate-bounce" style={{animationDelay: '0s'}}>
+            <div className="animate-bounce" style={{ animationDelay: '0s' }}>
               <BookOpen className="w-12 h-12 text-white text-opacity-90" />
             </div>
-            <div className="animate-bounce" style={{animationDelay: '0.5s'}}>
+            <div className="animate-bounce" style={{ animationDelay: '0.5s' }}>
               <TrendingUp className="w-10 h-10 text-white text-opacity-80" />
             </div>
-            <div className="animate-bounce" style={{animationDelay: '1s'}}>
+            <div className="animate-bounce" style={{ animationDelay: '1s' }}>
               <Target className="w-8 h-8 text-white text-opacity-70" />
             </div>
-            <div className="animate-bounce" style={{animationDelay: '1.5s'}}>
+            <div className="animate-bounce" style={{ animationDelay: '1.5s' }}>
               <Users className="w-10 h-10 text-white text-opacity-80" />
             </div>
           </div>
@@ -141,11 +136,11 @@ const handleLogin = async (e) => {
           <h1 className="text-4xl lg:text-5xl font-bold text-white text-opacity-90 mb-4 animate-fade-in">
             Welcome to Learnometer
           </h1>
-          
+
           <p className="text-lg text-white text-opacity-80 mb-6 font-light tracking-wide">
             Track, Learn, Grow
           </p>
-          
+
           <p className="text-white text-opacity-90 leading-relaxed text-base lg:text-lg">
             Continue your learning journey with Learnometer. Access your personalized dashboard and track your progress.
           </p>
@@ -220,11 +215,11 @@ const handleLogin = async (e) => {
                   />
                   <span className="ml-2 text-sm text-gray-600">Remember Me</span>
                 </label>
-                <button 
+                <button
                   type="button"
                   className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
-                  onClick={() => console.log('Forgot password clicked')}
-                >
+                  onClick={() => navigate('/forgot-password')}
+                  >
                   Forgot Password?
                 </button>
               </div>
@@ -252,12 +247,13 @@ const handleLogin = async (e) => {
 
             {/* SSO Button */}
             <button
-              onClick={handleGoogleSSO}
+              onClick={() => loginWithGoogle()}
               className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all"
             >
               <Chrome className="w-5 h-5 mr-3 text-blue-500" />
               Continue with Google
             </button>
+
 
             {/* Registration Divider */}
             <div className="my-6">

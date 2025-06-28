@@ -1,5 +1,6 @@
 import axiosInstance from '../../axios';
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from "react-router-dom";
 import {
   BookOpenIcon,
   CheckCircleIcon,
@@ -23,11 +24,12 @@ import {
   TrophyIcon
 } from '@heroicons/react/24/outline';
 
-const LearnerDashboard = () => {
 
+const LearnerDashboard = () => {
+  
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editData, setEditData] = useState({});
+  
 
   const [progressToggle, setProgressToggle] = useState('This Week');
   const [preferences, setPreferences] = useState({
@@ -84,26 +86,17 @@ const LearnerDashboard = () => {
     try {
       const res = await axiosInstance.get('users/profile/');
       setProfileData(res.data);
-      setEditData(res.data); // for editing
     } catch (err) {
       console.error("Failed to fetch profile", err);
     }
   };
 
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditData((prev) => ({ ...prev, [name]: value }));
+    const handleEditClick = () => {
+    
+      navigate("/learner/profile");
   };
 
-  const handleSave = async () => {
-    try {
-      await axiosInstance.put("users/profile/", editData);
-      setIsEditModalOpen(false);
-      fetchProfile();
-    } catch (err) {
-      console.error("Update failed", err);
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -238,8 +231,9 @@ const LearnerDashboard = () => {
 
                   {/* Edit Button */}
                   <button
+                    onClick={handleEditClick}
                     className="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center mx-auto"
-                    onClick={() => setIsEditModalOpen(true)}  
+ 
                   >
                     <PencilIcon className="h-4 w-4 mr-1" />
                      Edit Profile
@@ -249,60 +243,7 @@ const LearnerDashboard = () => {
             )}
 
 
- {/* Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md relative">
-            <button
-              onClick={() => setIsEditModalOpen(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-red-600"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-            <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-700">Full Name</label>
-                <input
-                  type="text"
-                  name="full_name"
-                  value={editData.full_name || ""}
-                  onChange={handleEditChange}
-                  className="w-full border px-3 py-2 rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-700">Contact Number</label>
-                <input
-                  type="text"
-                  name="contact_number"
-                  value={editData.contact_number || ""}
-                  onChange={handleEditChange}
-                  className="w-full border px-3 py-2 rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-700">Bio</label>
-                <textarea
-                  name="bio"
-                  value={editData.bio || ""}
-                  onChange={handleEditChange}
-                  className="w-full border px-3 py-2 rounded"
-                />
-              </div>
-              <div className="text-right">
-                <button
-                  onClick={handleSave}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
             {/* Learning Preferences */}
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">

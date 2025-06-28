@@ -1,5 +1,6 @@
 import axiosInstance from '../../axios';
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from "react-router-dom";
 import { format } from 'date-fns';
 import {
   AcademicCapIcon,
@@ -23,14 +24,10 @@ import {
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { StarIcon as StarSolid, PencilSquareIcon } from '@heroicons/react/24/solid';
 
-const MentorDashboard = () => {
+const MentorDashboard = () => { 
+   const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editData, setEditData] = useState({
-    full_name: '',
-    contact_number: '',
-    bio: ''
-  });
+
 
   const [earningsToggle, setEarningsToggle] = useState('Monthly');
   const [rankToggle, setRankToggle] = useState('Amount Earned');
@@ -97,31 +94,15 @@ const MentorDashboard = () => {
     try {
       const res = await axiosInstance.get('users/profile/');
       setProfileData(res.data);
-      setEditData({
-        full_name: res.data.full_name || '',
-        contact_number: res.data.contact_number || '',
-        bio: res.data.bio || ''
-      });
     } catch (err) {
       console.error('Failed to fetch profile data', err);
     }
   };
 
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditData((prev) => ({ ...prev, [name]: value }));
+    const handleEditClick = () => {
+    
+      navigate("/mentor/profile");
   };
-
-  const handleProfileUpdate = async () => {
-    try {
-      await axiosInstance.put('users/profile/', editData); // Your actual endpoint
-      setIsEditModalOpen(false);
-      fetchProfileData();
-    } catch (err) {
-      console.error('Update failed', err);
-    }
-  };
-
 
 
   return (
@@ -156,7 +137,7 @@ const MentorDashboard = () => {
         <div className="bg-white rounded-xl shadow-md p-6 border border-emerald-100 relative">
           {/* Edit icon */}
           <div className="absolute top-4 right-4">
-            <button onClick={() => setIsEditModalOpen(true)} title="Edit Profile">
+            <button onClick={handleEditClick} title="Edit Profile">
               <PencilSquareIcon className="w-5 h-5 text-emerald-600 hover:text-emerald-800" />
             </button>
           </div>
@@ -223,52 +204,7 @@ const MentorDashboard = () => {
         </div>
       )}
 
- {/* Edit Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-lg">
-            <h3 className="text-xl font-semibold text-emerald-800 mb-4">Edit Profile</h3>
-            <div className="space-y-3">
-              <input
-                name="full_name"
-                value={editData.full_name}
-                onChange={handleEditChange}
-                className="w-full border p-2 rounded text-sm"
-                placeholder="Full Name"
-              />
-              <input
-                name="contact_number"
-                value={editData.contact_number}
-                onChange={handleEditChange}
-                className="w-full border p-2 rounded text-sm"
-                placeholder="Contact Number"
-              />
-              <textarea
-                name="bio"
-                value={editData.bio}
-                onChange={handleEditChange}
-                className="w-full border p-2 rounded text-sm"
-                placeholder="Bio"
-                rows="3"
-              />
-            </div>
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleProfileUpdate}
-                className="px-4 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
 
         {/* Section 3: Session Schedule + Learner Feedback */}

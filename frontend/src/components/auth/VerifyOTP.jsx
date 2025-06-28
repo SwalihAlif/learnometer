@@ -218,7 +218,7 @@ const handleVerifyOTP = async (e) => {
 
         <div className="mt-6 text-center">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/')}
             className="text-gray-500 hover:text-gray-700 text-sm"
           >
             ← Back to Login

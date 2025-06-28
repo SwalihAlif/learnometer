@@ -1,3 +1,4 @@
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Toast from "./components/common/Toast";
 
@@ -11,9 +12,11 @@ import LearnerDashboard from "./pages/learner/LearnerDashboard";
 import LearnerMyCourses from "./pages/learner/LearnerMyCourses";
 import MainTopics from "./pages/learner/MainTopics";
 import SubTopics from "./pages/learner/SubTopics";
+import LearnerProfile from './pages/learner/LearnerProfile';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
+import MentorProfile from './pages/mentor/MentorProfile';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -25,39 +28,48 @@ import LoginPage from "./components/auth/Login";
 import LearnerRegistration from "./components/auth/RegisterLearner";
 import RegisterMentor from "./components/auth/RegisterMentor";
 import VerifyOTP from "./components/auth/VerifyOTP";
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Learner Layout */}
-        <Route path="/learner" element={<LearnerLayout />}>
-          <Route index element={<LearnerDashboard />} /> {/* /learner */}
-          <Route path="my-courses" element={<LearnerMyCourses />} />
-          <Route path="main-topics/:courseId" element={<MainTopics />} />
-          <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
-        </Route>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <BrowserRouter>
+        <Routes>
+          {/* Learner Layout */}
+          <Route path="/learner" element={<LearnerLayout />}>
+            <Route index element={<LearnerDashboard />} />
+            <Route path="my-courses" element={<LearnerMyCourses />} />
+            <Route path="main-topics/:courseId" element={<MainTopics />} />
+            <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
+            <Route path="profile" element={<LearnerProfile />} />
+          </Route>
 
-        {/* Mentor Layout */}
-        <Route path="/mentor" element={<MentorLayout />}>
-          <Route index element={<MentorDashboard />} /> {/* /mentor */}
-        </Route>
+          {/* Mentor Layout */}
+          <Route path="/mentor" element={<MentorLayout />}>
+            <Route index element={<MentorDashboard />} />
+            <Route path="profile" element={<MentorProfile />} />
+          </Route>
 
-        {/* Admin Layout */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} /> {/* /admin */}
-          <Route path="learners" element={<ManageLearner />} />
-          <Route path="mentors" element={<ManageMentors />} />
-        </Route>
+          {/* Admin Layout */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="learners" element={<ManageLearner />} />
+            <Route path="mentors" element={<ManageMentors />} />
+          </Route>
 
-        {/* Auth Routes */}
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/lregister" element={<LearnerRegistration />} />
-        <Route path="/mregister" element={<RegisterMentor />} />
-        <Route path="/verify-otp" element={<VerifyOTP />} />
-      </Routes>
+          {/* Auth Routes */}
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/lregister" element={<LearnerRegistration />} />
+          <Route path="/mregister" element={<RegisterMentor />} />
+          <Route path="/verify-otp" element={<VerifyOTP />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
+        </Routes>
 
-      <Toast />
-    </BrowserRouter>
+        <Toast />
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }
+
