@@ -256,7 +256,9 @@ const handleDeleteTopic = (id) => {
                   <Trash2 className="w-4 h-4 mr-1" />
                   Delete
                 </button>
-                <button className="flex items-center justify-center px-3 py-2 text-sm font-medium text-yellow-600 border border-yellow-200 rounded-md hover:bg-yellow-50 transition-colors duration-200">
+                <button 
+                onClick={() => navigate(`/learner/main-topics/${topic.id}/notes`)}
+                className="flex items-center justify-center px-3 py-2 text-sm font-medium text-yellow-600 border border-yellow-200 rounded-md hover:bg-yellow-50 transition-colors duration-200">
                   <FileText className="w-4 h-4 mr-1" />
                   Make Notes
                 </button>

@@ -8,65 +8,99 @@ const LearnerProfile = () => {
   // Selected options
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedLanguages, setSelectedLanguages] = useState([]);
+
+  // Availability state
+  const [availability, setAvailability] = useState({
+    Monday: { start: '', end: '', enabled: false },
+    Tuesday: { start: '', end: '', enabled: false },
+    Wednesday: { start: '', end: '', enabled: false },
+    Thursday: { start: '', end: '', enabled: false },
+    Friday: { start: '', end: '', enabled: false },
+    Saturday: { start: '', end: '', enabled: false },
+    Sunday: { start: '', end: '', enabled: false }
+  });
+
   const [profilePic, setProfilePic] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const [profilePicPreview, setProfilePicPreview] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
-  
+
   // Dropdown options (would be fetched from API)
   const [availableCategories, setAvailableCategories] = useState([]);
   const [availableLanguages] = useState(['English', 'Hindi', 'Spanish', 'French', 'German', 'Mandarin', 'Arabic']);
-  
+
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
   const [languagesDropdownOpen, setLanguagesDropdownOpen] = useState(false);
-  
-  
+
+
+
   // Refs
   const fileInputRef = useRef(null);
-  
 
+  // Time options for dropdowns
+  const timeOptions = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (let minute of ['00', '30']) {
+      const timeString = `${hour.toString().padStart(2, '0')}:${minute}`;
+      timeOptions.push(timeString);
+    }
+  }
 
   useEffect(() => {
-  const fetchProfile = async () => {
-    try {
-      const res = await axiosInstance.get("users/profile/", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access")}`,
-        },
-      });
+    const fetchProfile = async () => {
+      try {
+        const res = await axiosInstance.get("users/profile/", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access")}`,
+          },
+        });
 
-      const data = res.data;
+        const data = res.data;
 
-      setProfile(data);
+        setProfile(data);
 
-      // Optional: initialize other states like dropdowns or file
-      setSelectedCategories(data.preferred_categories || []);
-      setSelectedLanguages(data.languages_known || []);
+        // Optional: initialize other states like dropdowns or file
+        setSelectedCategories(data.preferred_categories || []);
+        setSelectedLanguages(data.languages_known || []);
 
-    } catch (err) {
-      console.error("Error fetching mentor profile:", err);
-      alert("Failed to load profile");
-    }
-  };
+        // ✅ Format incoming availability
+        const loadedAvailability = {};
+        const days = Object.keys(availability); // use existing structure
+        for (let day of days) {
+          const dayData = data.availability_schedule?.[day];
+          loadedAvailability[day] = {
+            enabled: !!(dayData?.start && dayData?.end),
+            start: dayData?.start || '',
+            end: dayData?.end || '',
+          };
+        }
 
-  fetchProfile();
-}, []);
+        setAvailability(loadedAvailability);
 
-  
-// fetch categories
-useEffect(() => {
-  const fetchCategories = async () => {
-    try {
-      const res = await axiosInstance.get("users/categories/");
-      setAvailableCategories(res.data); 
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
+      } catch (err) {
+        console.error("Error fetching mentor profile:", err);
+        alert("Failed to load profile");
+      }
+    };
 
-  fetchCategories();
-}, []);
+    fetchProfile();
+  }, []);
+
+
+  // fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axiosInstance.get("users/categories/");
+        setAvailableCategories(res.data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Handle file upload
   const handleFileChange = (file) => {
@@ -77,18 +111,18 @@ useEffect(() => {
       reader.readAsDataURL(file);
     }
   };
-  
+
   // Drag and drop handlers
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragOver(true);
   };
-  
+
   const handleDragLeave = (e) => {
     e.preventDefault();
     setIsDragOver(false);
   };
-  
+
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -97,89 +131,108 @@ useEffect(() => {
       handleFileChange(files[0]);
     }
   };
-  
+
   // Multi-select dropdown handlers
   const toggleCategory = (category) => {
-    setSelectedCategories(prev => 
-      prev.includes(category) 
+    setSelectedCategories(prev =>
+      prev.includes(category)
         ? prev.filter(c => c !== category)
         : [...prev, category]
     );
   };
-  
+
   const toggleLanguage = (language) => {
-    setSelectedLanguages(prev => 
-      prev.includes(language) 
+    setSelectedLanguages(prev =>
+      prev.includes(language)
         ? prev.filter(l => l !== language)
         : [...prev, language]
     );
   };
-  
+
   const removeCategory = (category) => {
     setSelectedCategories(prev => prev.filter(c => c !== category));
   };
-  
+
   const removeLanguage = (language) => {
     setSelectedLanguages(prev => prev.filter(l => l !== language));
   };
-  
- 
+
+
+  // Availability handlers
+  const toggleDay = (day) => {
+    setAvailability(prev => ({
+      ...prev,
+      [day]: { ...prev[day], enabled: !prev[day].enabled }
+    }));
+  };
+
+  const updateTimeSlot = (day, field, value) => {
+    setAvailability(prev => ({
+      ...prev,
+      [day]: { ...prev[day], [field]: value }
+    }));
+  };
+
+
   // Handle form submission
 
-const handleSave = async () => {
-  setIsLoading(true);
+  const handleSave = async () => {
+    setIsLoading(true);
 
-  try {
-    const formData = new FormData();
+    try {
+      const formData = new FormData();
 
-    // Add editable profile fields
-    if (profile.full_name) formData.append("full_name", profile.full_name);
-    if (profile.phone) formData.append("phone", profile.phone);
-    if (profile.bio) formData.append("bio", profile.bio);
-    if (profile.learning_goals) formData.append("learning_goals", profile.learning_goals);
-    if (profile.linkedin_profile) formData.append("linkedin_profile", profile.linkedin_profile);
-    if (profile.portfolio_website) formData.append("portfolio_website", profile.portfolio_website);
+      // Add editable profile fields
+      if (profile.full_name) formData.append("full_name", profile.full_name);
+      if (profile.phone) formData.append("phone", profile.phone);
+      if (profile.bio) formData.append("bio", profile.bio);
+      if (profile.learning_goals) formData.append("learning_goals", profile.learning_goals);
+      if (profile.linkedin_profile) formData.append("linkedin_profile", profile.linkedin_profile);
+      if (profile.portfolio_website) formData.append("portfolio_website", profile.portfolio_website);
 
-
-
-    // Append multi-select arrays
-    selectedCategories.forEach(category => {
-      formData.append("preferred_categories", category);
-    });
-
-    selectedLanguages.forEach(language => {
-      formData.append("languages_known", language);
-    });
-
-    // Append profile picture if selected
-    if (profilePic) {
-      formData.append("profile_picture", profilePic);
-    }
-
-    // Send PATCH request to update profile
-    const response = await axiosInstance.patch("users/profile/", formData, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("access")}`,
-        "Content-Type": "multipart/form-data"
+         // Append availability as a JSON string
+      if (availability && typeof availability === 'object') {
+        formData.append("availability_schedule", JSON.stringify(availability));
       }
-    });
 
-    // Update local state after success
-    console.log("Profile updated successfully:", response.data);
-    alert("Profile updated successfully.");
-    setProfile(response.data);
+      // Append multi-select arrays
+      selectedCategories.forEach(category => {
+        formData.append("preferred_categories", category);
+      });
 
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    alert("Failed to update profile. Please check console for errors.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+      selectedLanguages.forEach(language => {
+        formData.append("languages_known", language);
+      });
 
-  
+      // Append profile picture if selected
+      if (profilePic) {
+        formData.append("profile_picture", profilePic);
+      }
+
+      // Send PATCH request to update profile
+      const response = await axiosInstance.patch("users/profile/", formData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access")}`,
+          "Content-Type": "multipart/form-data"
+        }
+      });
+
+      // Update local state after success
+      console.log("Profile updated successfully:", response.data);
+      alert("Profile updated successfully.");
+      setProfile(response.data);
+
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Failed to update profile. Please check console for errors.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
   return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-gray-50 to-gray-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-gray-50 to-gray-100 py-8 px-4">
 
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -187,7 +240,7 @@ const handleSave = async () => {
           <h1 className="text-4xl font-bold text-indigo-800 mb-2">Learner Profile</h1>
           <p className="text-indigo-600 text-lg">Create your personalized learning profile</p>
         </div>
-        
+
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Profile Picture Section */}
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-900 p-8 text-white">
@@ -196,9 +249,9 @@ const handleSave = async () => {
               <div className="relative mb-6">
                 {profilePicPreview || profile.profile_picture ? (
                   <div className="relative">
-                    <img 
-                      src={profilePicPreview || profile.profile_picture} 
-                      alt="Profile" 
+                    <img
+                      src={profilePicPreview || profile.profile_picture}
+                      alt="Profile"
                       className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
                     />
                     <button
@@ -212,10 +265,9 @@ const handleSave = async () => {
                     </button>
                   </div>
                 ) : (
-                  <div 
-                    className={`w-32 h-32 rounded-full border-4 border-dashed border-white/50 flex items-center justify-center cursor-pointer transition-all duration-300 ${
-                      isDragOver ? 'border-amber-400 bg-white/10' : 'hover:border-white hover:bg-white/5'
-                    }`}
+                  <div
+                    className={`w-32 h-32 rounded-full border-4 border-dashed border-white/50 flex items-center justify-center cursor-pointer transition-all duration-300 ${isDragOver ? 'border-amber-400 bg-white/10' : 'hover:border-white hover:bg-white/5'
+                      }`}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
@@ -228,7 +280,7 @@ const handleSave = async () => {
                   </div>
                 )}
               </div>
-              
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -236,11 +288,10 @@ const handleSave = async () => {
                 onChange={(e) => handleFileChange(e.target.files[0])}
                 className="hidden"
               />
-              
+
               <div
-                className={`border-2 border-dashed border-white/30 rounded-lg p-6 w-full max-w-md text-center cursor-pointer transition-all duration-300 ${
-                  isDragOver ? 'border-amber-400 bg-white/10' : 'hover:border-white/50 hover:bg-white/5'
-                }`}
+                className={`border-2 border-dashed border-white/30 rounded-lg p-6 w-full max-w-md text-center cursor-pointer transition-all duration-300 ${isDragOver ? 'border-amber-400 bg-white/10' : 'hover:border-white/50 hover:bg-white/5'
+                  }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -251,7 +302,7 @@ const handleSave = async () => {
               </div>
             </div>
           </div>
-          
+
           {/* Form Content */}
           <div className="p-8 space-y-8">
             {/* Basic Information */}
@@ -269,7 +320,7 @@ const handleSave = async () => {
                   placeholder="Enter your full name"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-indigo-800 mb-2">
                   Email Address
@@ -284,7 +335,7 @@ const handleSave = async () => {
                 <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
               </div>
             </div>
-            
+
             {/* Phone and Experience */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -301,7 +352,7 @@ const handleSave = async () => {
                 />
               </div>
             </div>
-            
+
             {/* Bio and Learning Goals */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -316,7 +367,7 @@ const handleSave = async () => {
                   placeholder="Tell us about your professional background and experience..."
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-indigo-800 mb-2">
                   <Target size={16} className="inline mr-2" />
@@ -331,7 +382,7 @@ const handleSave = async () => {
                 />
               </div>
             </div>
-            
+
             {/* Social Links */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -346,7 +397,7 @@ const handleSave = async () => {
                   placeholder="https://linkedin.com/in/yourprofile"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-indigo-800 mb-2">
                   Portfolio Website
@@ -360,7 +411,7 @@ const handleSave = async () => {
                 />
               </div>
             </div>
-            
+
             {/* Read-only fields */}
             <div className="grid md:grid-cols-3 gap-6">
               <div>
@@ -374,7 +425,7 @@ const handleSave = async () => {
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-2">
                   <Calendar size={16} className="inline mr-2" />
@@ -387,7 +438,7 @@ const handleSave = async () => {
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-2">
                   <Shield size={16} className="inline mr-2" />
@@ -401,14 +452,14 @@ const handleSave = async () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Categories Selection - Dropdown */}
             <div className="relative">
               <label className="block text-sm font-semibold text-indigo-800 mb-3">
                 <Tag size={16} className="inline mr-2" />
                 Preferred Categories
               </label>
-              
+
               {/* Selected Categories Display */}
               {selectedCategories.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -428,7 +479,7 @@ const handleSave = async () => {
                   ))}
                 </div>
               )}
-              
+
               {/* Dropdown Button */}
               <button
                 type="button"
@@ -438,14 +489,13 @@ const handleSave = async () => {
                 <span className="text-indigo-700">
                   {selectedCategories.length === 0 ? 'Select categories...' : `${selectedCategories.length} selected`}
                 </span>
-                <ChevronDown 
-                  size={20} 
-                  className={`text-indigo-600 transition-transform duration-200 ${
-                    categoriesDropdownOpen ? 'transform rotate-180' : ''
-                  }`} 
+                <ChevronDown
+                  size={20}
+                  className={`text-indigo-600 transition-transform duration-200 ${categoriesDropdownOpen ? 'transform rotate-180' : ''
+                    }`}
                 />
               </button>
-              
+
               {/* Dropdown Menu */}
               {categoriesDropdownOpen && (
                 <div className="absolute z-10 w-full mt-1 bg-white border-2 border-indigo-100 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -454,9 +504,8 @@ const handleSave = async () => {
                       key={category}
                       type="button"
                       onClick={() => toggleCategory(category)}
-                      className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors duration-150 flex items-center justify-between ${
-                        selectedCategories.includes(category) ? 'bg-indigo-50 text-indigo-700' : 'text-indigo-700'
-                      }`}
+                      className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors duration-150 flex items-center justify-between ${selectedCategories.includes(category) ? 'bg-indigo-50 text-indigo-700' : 'text-indigo-700'
+                        }`}
                     >
                       <span>{category}</span>
                       {selectedCategories.includes(category) && (
@@ -467,14 +516,14 @@ const handleSave = async () => {
                 </div>
               )}
             </div>
-            
+
             {/* Languages Selection - Dropdown */}
             <div className="relative">
               <label className="block text-sm font-semibold text-indigo-800 mb-3">
                 <Globe size={16} className="inline mr-2" />
                 Languages Known
               </label>
-              
+
               {/* Selected Languages Display */}
               {selectedLanguages.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -494,7 +543,7 @@ const handleSave = async () => {
                   ))}
                 </div>
               )}
-              
+
               {/* Dropdown Button */}
               <button
                 type="button"
@@ -504,14 +553,13 @@ const handleSave = async () => {
                 <span className="text-indigo-700">
                   {selectedLanguages.length === 0 ? 'Select languages...' : `${selectedLanguages.length} selected`}
                 </span>
-                <ChevronDown 
-                  size={20} 
-                  className={`text-indigo-600 transition-transform duration-200 ${
-                    languagesDropdownOpen ? 'transform rotate-180' : ''
-                  }`} 
+                <ChevronDown
+                  size={20}
+                  className={`text-indigo-600 transition-transform duration-200 ${languagesDropdownOpen ? 'transform rotate-180' : ''
+                    }`}
                 />
               </button>
-              
+
               {/* Dropdown Menu */}
               {languagesDropdownOpen && (
                 <div className="absolute z-10 w-full mt-1 bg-white border-2 border-indigo-100 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -520,9 +568,8 @@ const handleSave = async () => {
                       key={language}
                       type="button"
                       onClick={() => toggleLanguage(language)}
-                      className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors duration-150 flex items-center justify-between ${
-                        selectedLanguages.includes(language) ? 'bg-indigo-50 text-amber-600' : 'text-indigo-700'
-                      }`}
+                      className={`w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors duration-150 flex items-center justify-between ${selectedLanguages.includes(language) ? 'bg-indigo-50 text-amber-600' : 'text-indigo-700'
+                        }`}
                     >
                       <span>{language}</span>
                       {selectedLanguages.includes(language) && (
@@ -533,17 +580,67 @@ const handleSave = async () => {
                 </div>
               )}
             </div>
-            
+
+            {/* Availability Schedule */}
+            <div>
+              <label className="block text-sm font-semibold text-indigo-800 mb-4">
+                <Clock size={16} className="inline mr-2" />
+                Availability Schedule
+              </label>
+              <div className="bg-indigo-50/50 rounded-xl p-6 space-y-4">
+                {Object.keys(availability).map((day) => (
+                  <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-white rounded-lg border border-indigo-100">
+                    <div className="flex items-center space-x-3 sm:w-32">
+                      <input
+                        type="checkbox"
+                        checked={availability[day].enabled}
+                        onChange={() => toggleDay(day)}
+                        className="w-4 h-4 text-teal-700 bg-indigo-100 border-indigo-300 rounded focus:ring-teal-700 focus:ring-2"
+                      />
+                      <span className="font-medium text-indigo-800 text-sm">{day}</span>
+                    </div>
+
+                    {availability[day].enabled && (
+                      <div className="flex items-center space-x-3 flex-1">
+                        <select
+                          value={availability[day].start}
+                          onChange={(e) => updateTimeSlot(day, 'start', e.target.value)}
+                          className="px-3 py-2 border border-indigo-200 rounded-lg focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 bg-white text-sm"
+                        >
+                          <option value="">Start Time</option>
+                          {timeOptions.map((time) => (
+                            <option key={time} value={time}>{time}</option>
+                          ))}
+                        </select>
+
+                        <span className="text-indigo-600 font-medium">to</span>
+
+                        <select
+                          value={availability[day].end}
+                          onChange={(e) => updateTimeSlot(day, 'end', e.target.value)}
+                          className="px-3 py-2 border border-indigo-200 rounded-lg focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 bg-white text-sm"
+                        >
+                          <option value="">End Time</option>
+                          {timeOptions.map((time) => (
+                            <option key={time} value={time}>{time}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Save Button */}
             <div className="flex justify-center pt-6">
               <button
                 onClick={handleSave}
                 disabled={isLoading}
-                className={`px-8 py-4 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${
-                  isLoading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-indigo-700 to-indigo-700 hover:from-indigo-800 hover:to-indigo-800 hover:shadow-xl'
-                }`}
+                className={`px-8 py-4 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-105 shadow-lg ${isLoading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-indigo-700 to-indigo-700 hover:from-indigo-800 hover:to-indigo-800 hover:shadow-xl'
+                  }`}
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
