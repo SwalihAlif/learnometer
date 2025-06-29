@@ -221,3 +221,6 @@ CORS_ALLOW_HEADERS = [
 
 # loggin config
 from .logging_config import LOGGING
+
+# gemini api key 
+GOOGLE_API_KEY = config("GOOGLE_API_KEY")
