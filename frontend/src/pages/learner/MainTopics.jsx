@@ -266,11 +266,15 @@ const handleDeleteTopic = (id) => {
 
               {/* Action Buttons Row 2 */}
               <div className="grid grid-cols-2 gap-2">
-                <button className="flex items-center justify-center px-3 py-2 text-sm font-medium text-purple-600 border border-purple-200 rounded-md hover:bg-purple-50 transition-colors duration-200">
+                <button 
+                  onClick={() => navigate(`/learner/quiz/${topic.id}`)}
+                className="flex items-center justify-center px-3 py-2 text-sm font-medium text-purple-600 border border-purple-200 rounded-md hover:bg-purple-50 transition-colors duration-200">
                   <Brain className="w-4 h-4 mr-1" />
                   Attend Quiz
                 </button>
-                <button className="flex items-center justify-center px-3 py-2 text-sm font-medium text-emerald-600 border border-emerald-200 rounded-md hover:bg-emerald-50 transition-colors duration-200">
+                <button
+                onClick={() => navigate('/learner/schedule')}
+                className="flex items-center justify-center px-3 py-2 text-sm font-medium text-emerald-600 border border-emerald-200 rounded-md hover:bg-emerald-50 transition-colors duration-200">
                   <Calendar className="w-4 h-4 mr-1" />
                   View Schedules
                 </button>

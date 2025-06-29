@@ -15,6 +15,8 @@ import MainTopics from "./pages/learner/MainTopics";
 import SubTopics from "./pages/learner/SubTopics";
 import LearnerProfile from './pages/learner/LearnerProfile';
 import NotesPage from './pages/learner/NotesPage';
+import LearningSchedulePage from './pages/learner/SchedulePage';
+import Quiz from './pages/learner/Quiz';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
@@ -46,6 +48,8 @@ export default function App() {
             <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
             <Route path="profile" element={<LearnerProfile />} />
             <Route path="main-topics/:topicId/notes" element={<NotesPage />} />
+            <Route path="schedule" element={<LearningSchedulePage />} />
+            <Route path="quiz/:mainTopicId" element={<Quiz />} />
             
           </Route>
 

@@ -107,38 +107,42 @@ const LearnerMyCourses = () => {
     });
   };
 
-  const handleUpdateCourse = async (id) => {
-    try {
-      const categoryName = courses.find(c => c.id === id)?.category?.name || '';
+const handleUpdateCourse = async (id) => {
+  try {
+    const course = courses.find(c => c.id === id);
+    const categoryName = course?.category?.name || '';
 
-      const res = await axiosInstance.put(`courses/${id}/`, {
-        title: editedCourse.title,
-        description: editedCourse.description,
-        category_name: categoryName  // ✅ include this!
-      });
+    const res = await axiosInstance.put(`courses/${id}/`, {
+      title: editedCourse.title,
+      description: editedCourse.description,
+      category_name: categoryName
+    });
 
-      setCourses((prev) =>
-        prev.map((c) => (c.id === id ? res.data : c))
-      );
-      setEditingCourseId(null);
-    } catch (err) {
-      console.error('Error updating course:', err);
-      if (err.response) {
-        console.error('Backend response:', err.response.data);
-      }
+    // ✅ Refetch updated list (you can keep current page or go to page 1)
+    dispatch(fetchPaginatedData({ url: 'courses', page }));
+
+    setEditingCourseId(null);
+    dispatch(showToast({ message: 'Course updated successfully', type: 'success' }));
+  } catch (err) {
+    console.error('Error updating course:', err);
+    if (err.response) {
+      console.error('Backend response:', err.response.data);
     }
-  };
+    dispatch(showToast({ message: 'Failed to update course', type: 'error' }));
+  }
+};
 
 
 
- const handleDeleteCourse = (courseId) => {
+
+const handleDeleteCourse = (courseId) => {
   dispatch(showDialog({
     title: "Delete Course?",
     message: "Are you sure you want to permanently delete this course?",
     onConfirm: async () => {
       try {
         await axiosInstance.delete(`courses/${courseId}/`);
-        setCourses(prev => prev.filter(course => course.id !== courseId));
+        dispatch(fetchPaginatedData({ url: 'courses', page }));  // 🔁 Re-fetch updated data
       } catch (err) {
         console.error('Error deleting course:', err);
       }
