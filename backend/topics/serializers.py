@@ -1,10 +1,12 @@
 from rest_framework import serializers
-from .models import MainTopic, SubTopic, Question, Answer
+from .models import MainTopic, SubTopic, Question, Answer, Schedule
 
 class MainTopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = MainTopic
-        fields = ['id', 'course', 'title', 'description', 'created_at']
+        fields = ['id', 'course', 'title', 'description', 'created_at', 'created_by']
+
+        read_only_fields = ['created_by']
 
 # serializers.py
 
@@ -32,4 +34,14 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ['id', 'main_topic', 'question_text', 'created_by', 'created_at', 'answer']
         read_only_fields = ['id', 'created_by', 'created_at']
 
+
+
+
+class ScheduleSerializer(serializers.ModelSerializer):
+    topic_title = serializers.CharField(source='topic.title', read_only=True)
+
+    class Meta:
+        model = Schedule
+        fields = ['id', 'topic', 'topic_title', 'date', 'start_time', 'end_time']
+        read_only_fields = ['id', 'topic_title']
 

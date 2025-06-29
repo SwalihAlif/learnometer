@@ -57,12 +57,11 @@ class UserProfile(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Learner-specific fields
+
     preferred_categories = models.JSONField(blank=True, default=list)  # List of categories
     languages_known = models.JSONField(blank=True, default=list)       # List of languages
     learning_goals = models.TextField(blank=True, null=True)
 
-    # Mentor-specific fields
     experience_years = models.PositiveIntegerField(blank=True, null=True)
     linkedin_profile = models.URLField(blank=True, null=True)
     portfolio_website = models.URLField(blank=True, null=True)

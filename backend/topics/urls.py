@@ -3,7 +3,8 @@ from .views import (
     MainTopicListCreateView, MainTopicRetrieveUpdateDestroyView, SubTopicListCreateView, SubTopicDetailView,
     SubtopicProgressChartView, QuestionListCreateView, QuestionDetailView,
     AnswerCreateView, AnswerDetailView,
-    GenerateAIAnswerView
+    GenerateAIAnswerView, GenerateLearningScheduleView, LearnerScheduleView,
+    GenerateAIQuizView
     
 
 ) 
@@ -23,6 +24,13 @@ urlpatterns = [
     path('answers/<int:pk>/', AnswerDetailView.as_view(), name='answer-detail'),
 
     path('generate-ai-answer/', GenerateAIAnswerView.as_view(), name='generate-ai-answer'),
+    path('generate-schedule/', GenerateLearningScheduleView.as_view(), name='generate-schedule'),
+    path('schedule/', LearnerScheduleView.as_view(), name='learner-schedule'),
+
+    path('quiz/generate/<int:main_topic_id>/', GenerateAIQuizView.as_view()),
+
+    
+
 
 ]
 

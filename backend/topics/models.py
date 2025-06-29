@@ -46,3 +46,14 @@ class Answer(models.Model):
 
     def __str__(self):
         return f"Answer by {self.created_by} for Q{self.question.id} (AI: {self.is_ai_generated})"
+    
+
+class Schedule(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    topic = models.ForeignKey(MainTopic, on_delete=models.CASCADE)
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    def __str__(self):
+        return f"{self.topic.title} on {self.date}"
