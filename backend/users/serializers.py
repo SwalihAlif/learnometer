@@ -80,6 +80,8 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class UserProfileSerializer(serializers.ModelSerializer):
+
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     # Read-only user details
     email = serializers.EmailField(source='user.email', read_only=True)
     role = serializers.CharField(source='user.role.name', read_only=True)
@@ -108,6 +110,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
+            'user_id',
             'email', 'role', 'created_at',
             'full_name', 'profile_picture', 'phone', 'bio',
             'preferred_categories', 'languages_known', 'learning_goals',
@@ -137,17 +140,17 @@ class AdminLearnerCRUDSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
 
     # Nested UserProfile fields using `source`
-    full_name = serializers.CharField(source='userprofile.full_name', required=False)
-    phone = serializers.CharField(source='userprofile.phone', required=False, allow_blank=True)
-    profile_picture = serializers.ImageField(source='userprofile.profile_picture', required=False)
-    bio = serializers.CharField(source='userprofile.bio', required=False, allow_blank=True)
-    experience_years = serializers.IntegerField(source='userprofile.experience_years', required=False)
-    preferred_categories = serializers.ListField(source='userprofile.preferred_categories', child=serializers.CharField(), required=False)
-    languages_known = serializers.ListField(source='userprofile.languages_known', child=serializers.CharField(), required=False)
-    learning_goals = serializers.CharField(source='userprofile.learning_goals', required=False, allow_blank=True)
-    linkedin_profile = serializers.URLField(source='userprofile.linkedin_profile', required=False, allow_blank=True)
-    portfolio_website = serializers.URLField(source='userprofile.portfolio_website', required=False, allow_blank=True)
-    availability_schedule = serializers.JSONField(source='userprofile.availability_schedule', required=False)
+    full_name = serializers.CharField(source='user_aprofile.full_name', required=False)
+    phone = serializers.CharField(source='user_profile.phone', required=False, allow_blank=True)
+    profile_picture = serializers.ImageField(source='user_profile.profile_picture', required=False)
+    bio = serializers.CharField(source='user_profile.bio', required=False, allow_blank=True)
+    experience_years = serializers.IntegerField(source='user_profile.experience_years', required=False)
+    preferred_categories = serializers.ListField(source='user_profile.preferred_categories', child=serializers.CharField(), required=False)
+    languages_known = serializers.ListField(source='user_profile.languages_known', child=serializers.CharField(), required=False)
+    learning_goals = serializers.CharField(source='user_profile.learning_goals', required=False, allow_blank=True)
+    linkedin_profile = serializers.URLField(source='user_profile.linkedin_profile', required=False, allow_blank=True)
+    portfolio_website = serializers.URLField(source='user_profile.portfolio_website', required=False, allow_blank=True)
+    availability_schedule = serializers.JSONField(source='user_profile.availability_schedule', required=False)
 
     class Meta:
         model = User
@@ -158,7 +161,7 @@ class AdminLearnerCRUDSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        userprofile_data = validated_data.pop('userprofile', {})
+        userprofile_data = validated_data.pop('user_profile', {})
         password = validated_data.pop('password', None)
         
         role = Role.objects.get(name='Learner')
@@ -172,7 +175,7 @@ class AdminLearnerCRUDSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
-        userprofile_data = validated_data.pop('userprofile', {})
+        userprofile_data = validated_data.pop('user_profile', {})
 
         instance.email = validated_data.get('email', instance.email)
         if 'password' in validated_data and validated_data['password']:
@@ -199,18 +202,18 @@ class AdminMentorCRUDSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
 
     # UserProfile fields via source
-    full_name = serializers.CharField(source='userprofile.full_name', required=False)
-    phone = serializers.CharField(source='userprofile.phone', required=False, allow_blank=True)
-    profile_picture = serializers.ImageField(source='userprofile.profile_picture', required=False)
-    bio = serializers.CharField(source='userprofile.bio', required=False, allow_blank=True)
-    experience_years = serializers.IntegerField(source='userprofile.experience_years', required=False)
-    preferred_categories = serializers.ListField(source='userprofile.preferred_categories', child=serializers.CharField(), required=False)
-    languages_known = serializers.ListField(source='userprofile.languages_known', child=serializers.CharField(), required=False)
-    learning_goals = serializers.CharField(source='userprofile.learning_goals', required=False, allow_blank=True)
-    linkedin_profile = serializers.URLField(source='userprofile.linkedin_profile', required=False, allow_blank=True)
-    portfolio_website = serializers.URLField(source='userprofile.portfolio_website', required=False, allow_blank=True)
-    availability_schedule = serializers.JSONField(source='userprofile.availability_schedule', required=False)
-    is_approved = serializers.BooleanField(source='userprofile.is_approved', required=False)
+    full_name = serializers.CharField(source='user_profile.full_name', required=False)
+    phone = serializers.CharField(source='user_profile.phone', required=False, allow_blank=True)
+    profile_picture = serializers.ImageField(source='user_profile.profile_picture', required=False)
+    bio = serializers.CharField(source='user_profile.bio', required=False, allow_blank=True)
+    experience_years = serializers.IntegerField(source='user_profile.experience_years', required=False)
+    preferred_categories = serializers.ListField(source='user_profile.preferred_categories', child=serializers.CharField(), required=False)
+    languages_known = serializers.ListField(source='user_profile.languages_known', child=serializers.CharField(), required=False)
+    learning_goals = serializers.CharField(source='user_profile.learning_goals', required=False, allow_blank=True)
+    linkedin_profile = serializers.URLField(source='user_profile.linkedin_profile', required=False, allow_blank=True)
+    portfolio_website = serializers.URLField(source='user_profile.portfolio_website', required=False, allow_blank=True)
+    availability_schedule = serializers.JSONField(source='user_profile.availability_schedule', required=False)
+    is_approved = serializers.BooleanField(source='user_profile.is_approved', required=False)
 
     class Meta:
         model = User
@@ -221,7 +224,7 @@ class AdminMentorCRUDSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        userprofile_data = validated_data.pop('userprofile', {})
+        userprofile_data = validated_data.pop('user_profile', {})
         password = validated_data.pop('password', None)
 
         # Set Mentor role
@@ -236,7 +239,7 @@ class AdminMentorCRUDSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
-        userprofile_data = validated_data.pop('userprofile', {})
+        userprofile_data = validated_data.pop('user_profile', {})
 
         # Update user fields
         instance.email = validated_data.get('email', instance.email)

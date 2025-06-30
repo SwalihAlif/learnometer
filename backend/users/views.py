@@ -18,6 +18,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth import get_user_model
 from .serializers import OTPVerifySerializer
+from rest_framework.generics import RetrieveAPIView
 
 
 logger = logging.getLogger("users")
@@ -222,6 +223,16 @@ class UserProfileDetailUpdateView(generics.RetrieveUpdateAPIView):
         return response
     
 
+class MentorPublicProfileView(RetrieveAPIView):
+    queryset = UserProfile.objects.select_related('user')
+    serializer_class = UserProfileSerializer
+    permission_classes = [AllowAny]  # or IsAuthenticated, if required
+
+    def get_object(self):
+        user_id = self.kwargs.get('user_id')
+        return get_object_or_404(self.get_queryset(), user__id=user_id)
+    
+
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -353,7 +364,7 @@ class AdminLearnerListCreateView(generics.ListCreateAPIView):
     serializer_class = AdminLearnerCRUDSerializer
 
     def get_queryset(self):
-        return User.objects.filter(role__name='Learner').select_related('userprofile')
+        return User.objects.filter(role__name='Learner').select_related('user_profile')
 
 
 class AdminLearnerRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
@@ -365,7 +376,7 @@ class AdminLearnerRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView
     lookup_field = 'pk'
 
     def get_queryset(self):
-        return User.objects.filter(role__name='Learner').select_related('userprofile')
+        return User.objects.filter(role__name='Learner').select_related('user_profile')
 
 
 
@@ -386,7 +397,7 @@ class AdminMentorListCreateView(generics.ListCreateAPIView):
     serializer_class = AdminMentorCRUDSerializer
 
     def get_queryset(self):
-        return User.objects.filter(role__name="Mentor").select_related("userprofile")
+        return User.objects.filter(role__name="Mentor").select_related("user_profile")
 
 
 class AdminMentorRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
@@ -398,5 +409,5 @@ class AdminMentorRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView)
     lookup_field = 'pk'
 
     def get_queryset(self):
-        return User.objects.filter(role__name="Mentor").select_related("userprofile")
+        return User.objects.filter(role__name="Mentor").select_related("user_profile")
 
