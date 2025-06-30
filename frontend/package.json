@@ -20,9 +20,11 @@
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.517.0",
     "react": "^19.1.0",
+    "react-calendar": "^6.0.0",
     "react-dom": "^19.1.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.2",
+    "react-toastify": "^11.0.5",
     "recharts": "^3.0.0",
     "tailwindcss": "^4.1.10"
   },

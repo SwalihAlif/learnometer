@@ -18,7 +18,7 @@ const LearnerSidebar = () => {
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '' },
     { name: 'My Courses', icon: BookOpen, path: 'my-courses' },
-    { name: 'Assignments', icon: FileQuestion, path: 'assignments' },
+    { name: 'Sessions', icon: FileQuestion, path: 'my-sessions' },
     { name: 'Schedule', icon: Calendar, path: 'schedule' },
     { name: 'Video Library', icon: Video, path: 'videos' },
     { name: 'Favorites', icon: Heart, path: 'favorites' },
@@ -54,7 +54,7 @@ const LearnerSidebar = () => {
 
           <li>
             <NavLink
-              to="/learner/mentors"
+              to="/learner/all-mentors"
               className={({ isActive }) =>
                 `flex items-center px-3 py-2 rounded-lg transition-colors duration-200 ${
                   isActive ? 'bg-yellow-300' : 'bg-yellow-400 hover:bg-yellow-300'

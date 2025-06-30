@@ -17,10 +17,15 @@ import LearnerProfile from './pages/learner/LearnerProfile';
 import NotesPage from './pages/learner/NotesPage';
 import LearningSchedulePage from './pages/learner/SchedulePage';
 import Quiz from './pages/learner/Quiz';
+import MentorList from './pages/learner/MentorList';
+import BookSession from './pages/learner/BookSession';
+import LearnerMySessions from './pages/learner/LearnerMySessions';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
 import MentorProfile from './pages/mentor/MentorProfile';
+import ManageAvailability from './pages/mentor/ManageAvailability';
+import MentorMySessions from './pages/mentor/MentorMySessions';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -50,6 +55,10 @@ export default function App() {
             <Route path="main-topics/:topicId/notes" element={<NotesPage />} />
             <Route path="schedule" element={<LearningSchedulePage />} />
             <Route path="quiz/:mainTopicId" element={<Quiz />} />
+            <Route path="all-mentors" element={<MentorList />} />
+            <Route path="book-session/:mentorId" element={<BookSession />} />
+            <Route path="my-sessions" element={<LearnerMySessions />} />
+
             
           </Route>
 
@@ -57,6 +66,9 @@ export default function App() {
           <Route path="/mentor" element={<MentorLayout />}>
             <Route index element={<MentorDashboard />} />
             <Route path="profile" element={<MentorProfile />} />
+            <Route path="manage-availability" element={<ManageAvailability />} />
+            <Route path="my-sessions" element={<MentorMySessions />} />
+
           </Route>
 
           {/* Admin Layout */}
