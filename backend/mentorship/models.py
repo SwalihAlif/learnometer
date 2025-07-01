@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.core.validators import MinValueValidator, MaxValueValidator
+from cloudinary.models import CloudinaryField
 
 User = get_user_model()
 
@@ -90,20 +92,52 @@ class PaymentTransaction(models.Model):
         return f"{self.booking} - {self.status}"
 
 # ----------------------
-# Feedback and Review
+# Review
 # ----------------------
-class SessionFeedbackReview(models.Model):
-    session = models.OneToOneField(SessionBooking, on_delete=models.CASCADE, related_name='feedback')
-    feedback_from_mentor = models.TextField(blank=True)
-    rating_by_learner = models.PositiveSmallIntegerField(null=True, blank=True)  # 1 to 5
-    review_by_learner = models.TextField(blank=True)
-    is_public = models.BooleanField(default=True)
+class Review(models.Model):
+    session = models.OneToOneField(SessionBooking, on_delete=models.CASCADE, related_name='review')
+    
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='given_reviews')  # learner
+    reviewee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_reviews')  # mentor
+
+    rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        ordering = ['-created_at']
+    def __str__(self):
+        return f"Review by {self.reviewer.email} for {self.reviewee.email} – {self.rating} stars"
+
+# ----------------------
+# Feedback
+# ----------------------
+class Feedback(models.Model):
+    session = models.OneToOneField(SessionBooking, on_delete=models.CASCADE, related_name='feedback')
+
+    giver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='given_feedbacks')  # mentor
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_feedbacks')  # learner
+
+    message = models.TextField(blank=True, null=True)
+
+    video = CloudinaryField('video', blank=True, null=True)
+    audio = CloudinaryField('video', blank=True, null=True)  # Cloudinary doesn't have 'audio' type, so use 'video'
+    image = CloudinaryField('image', blank=True, null=True)
+
+    external_links = models.TextField(blank=True, null=True, help_text="Comma-separated URLs")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def get_links_list(self):
+        return [link.strip() for link in self.external_links.split(',')] if self.external_links else []
 
     def __str__(self):
-        return f"Review for {self.session}"
+        return f"Feedback by {self.giver.email} for {self.receiver.email}"
 
 
+
+from cloudinary.models import CloudinaryField
+
+class Checking(models.Model):
+    message = models.TextField(blank=True, null=True)
+    video = CloudinaryField('video', blank=True, null=True)
+    audio = CloudinaryField('video', blank=True, null=True)  # use 'video' for audio too
+    image = CloudinaryField('image', blank=True, null=True)

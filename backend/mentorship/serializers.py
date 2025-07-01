@@ -3,8 +3,7 @@ from users.models import UserProfile
 from .models import (
     MentorAvailability,
     SessionBooking,
-    PaymentTransaction,
-    SessionFeedbackReview
+    PaymentTransaction
 )
 from django.contrib.auth import get_user_model
 from datetime import datetime, time
@@ -179,48 +178,95 @@ class SessionBookingSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+# ------------------------------
+# Session Review Serializer
+# ------------------------------
+from rest_framework import serializers
+from .models import Review
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ['id', 'session', 'reviewer', 'reviewee', 'rating', 'comment', 'created_at']
+        read_only_fields = ['reviewer', 'reviewee', 'created_at']
+
+
+
+# ------------------------------
+# Session Feedback Serializer
+# ------------------------------
+
+from rest_framework import serializers
+from .models import Feedback
+from cloudinary.utils import cloudinary_url
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    audio = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
+
+    def get_image(self, obj):
+        if obj.image:
+            url, _ = cloudinary_url(obj.image.public_id)
+            return url
+        return None
+
+    def get_video(self, obj):
+        if obj.video:
+            url, _ = cloudinary_url(obj.video.public_id, resource_type="video")
+            return url
+        return None
+
+    def get_audio(self, obj):
+        if obj.audio:
+            url, _ = cloudinary_url(obj.audio.public_id, resource_type="video")  # audio is stored as video
+            return url
+        return None
+
+    class Meta:
+        model = Feedback
+        fields = [
+            'id', 'session', 'giver', 'receiver', 'message',
+            'video', 'audio', 'image', 'external_links', 'created_at'
+        ]
+        read_only_fields = ['giver', 'receiver', 'created_at']
+        extra_kwargs = {
+            'message': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'video': {'required': False, 'allow_null': True},
+            'audio': {'required': False, 'allow_null': True},
+            'image': {'required': False, 'allow_null': True},
+            'external_links': {'required': False, 'allow_blank': True, 'allow_null': True},
+        }
+
+
+
+
+
+
 # ------------------------------
 # Payment Transaction Serializer
 # ------------------------------
-class PaymentTransactionSerializer(serializers.ModelSerializer):
-    session_id = serializers.IntegerField(source='booking.id', read_only=True)
 
+
+
+
+
+
+
+from rest_framework import serializers
+from .models import Checking
+
+class CheckingSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PaymentTransaction
-        fields = [
-            'id',
-            'booking',
-            'session_id',
-            'amount',
-            'payment_gateway',
-            'transaction_id',
-            'status',
-            'refund_reason',
-            'timestamp',
-        ]
-        read_only_fields = ['timestamp', 'status']
+        model = Checking
+        fields = '__all__'
+        extra_kwargs = {
+            'message': {'required': False, 'allow_null': True, 'allow_blank': True},
+            'video': {'required': False, 'allow_null': True},
+            'audio': {'required': False, 'allow_null': True},
+            'image': {'required': False, 'allow_null': True},
+        }
 
-
-# ------------------------------
-# Session Feedback & Review Serializer
-# ------------------------------
-class SessionFeedbackReviewSerializer(serializers.ModelSerializer):
-    session_id = serializers.IntegerField(source='session.id', read_only=True)
-    mentor_email = serializers.EmailField(source='session.mentor.email', read_only=True)
-    learner_email = serializers.EmailField(source='session.learner.email', read_only=True)
-
-    class Meta:
-        model = SessionFeedbackReview
-        fields = [
-            'id',
-            'session',
-            'session_id',
-            'mentor_email',
-            'learner_email',
-            'feedback_from_mentor',
-            'rating_by_learner',
-            'review_by_learner',
-            'is_public',
-            'created_at',
-        ]
-        read_only_fields = ['created_at']
