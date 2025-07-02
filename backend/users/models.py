@@ -52,7 +52,7 @@ class UserProfile(models.Model):
     
     # Shared fields
     full_name = models.CharField(max_length=100)
-    profile_picture = CloudinaryField('image', blank=True, null=True)
+    profile_picture = CloudinaryField('image', blank=True, null=True) 
     bio = models.TextField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

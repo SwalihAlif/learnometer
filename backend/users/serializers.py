@@ -139,8 +139,8 @@ class AdminLearnerCRUDSerializer(serializers.ModelSerializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, required=False)
 
-    # Nested UserProfile fields using `source`
-    full_name = serializers.CharField(source='user_aprofile.full_name', required=False)
+    # UserProfile fields via source
+    full_name = serializers.CharField(source='user_profile.full_name', required=False)
     phone = serializers.CharField(source='user_profile.phone', required=False, allow_blank=True)
     profile_picture = serializers.ImageField(source='user_profile.profile_picture', required=False)
     bio = serializers.CharField(source='user_profile.bio', required=False, allow_blank=True)
@@ -151,13 +151,16 @@ class AdminLearnerCRUDSerializer(serializers.ModelSerializer):
     linkedin_profile = serializers.URLField(source='user_profile.linkedin_profile', required=False, allow_blank=True)
     portfolio_website = serializers.URLField(source='user_profile.portfolio_website', required=False, allow_blank=True)
     availability_schedule = serializers.JSONField(source='user_profile.availability_schedule', required=False)
+    is_approved = serializers.BooleanField(source='user_profile.is_approved', required=False)
+    created_at = serializers.DateTimeField(read_only=True)
+    is_active = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'password', 'full_name', 'phone', 'profile_picture', 'bio',
             'experience_years', 'preferred_categories', 'languages_known', 'learning_goals',
-            'linkedin_profile', 'portfolio_website', 'availability_schedule'
+            'linkedin_profile', 'portfolio_website', 'availability_schedule', 'is_approved', 'created_at', 'is_active'
         ]
 
     def create(self, validated_data):
@@ -214,13 +217,15 @@ class AdminMentorCRUDSerializer(serializers.ModelSerializer):
     portfolio_website = serializers.URLField(source='user_profile.portfolio_website', required=False, allow_blank=True)
     availability_schedule = serializers.JSONField(source='user_profile.availability_schedule', required=False)
     is_approved = serializers.BooleanField(source='user_profile.is_approved', required=False)
+    created_at = serializers.DateTimeField(read_only=True)
+    is_active = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'password', 'full_name', 'phone', 'profile_picture', 'bio',
             'experience_years', 'preferred_categories', 'languages_known', 'learning_goals',
-            'linkedin_profile', 'portfolio_website', 'availability_schedule', 'is_approved'
+            'linkedin_profile', 'portfolio_website', 'availability_schedule', 'is_approved', 'created_at', 'is_active'
         ]
 
     def create(self, validated_data):

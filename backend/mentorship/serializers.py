@@ -14,30 +14,12 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 # ------------------------------
-# Mentor Public Profile Serializer
-# ------------------------------
-class MentorPublicProfileSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField(source='user.id', read_only=True)
-    email = serializers.EmailField(source='user.email')  # nested from User model
-    profile_picture = serializers.ImageField(required=False)
-
-    class Meta:
-        model = UserProfile
-        fields = [
-            'user_id',
-            'email',
-            'full_name',
-            'bio',
-            'experience_years',
-            'profile_picture',
-            'preferred_categories',
-            'languages_known',
-        ]
-# ------------------------------
 # Mentor Availability Serializer
 # ------------------------------
 
 from django.utils.timezone import make_aware, localtime
+from datetime import date, datetime, time
+from django.utils.timezone import localtime, now
 
 
 class MentorAvailabilitySerializer(serializers.ModelSerializer):
@@ -108,7 +90,60 @@ class MentorAvailabilitySerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         validated_data['mentor'] = request.user
         return super().create(validated_data)
+    
+    def validate_date(self, value):
+        if value < date.today():
+            raise serializers.ValidationError("You cannot create a slot for a past date.")
+        return value
+    def validate(self, attrs):
+        selected_date = attrs.get("date")
+        start_time = attrs.get("start_time")
 
+        if selected_date == date.today():
+            # Get current local time (timezone-aware)
+            current_time = localtime(now()).time()
+
+            if start_time <= current_time:
+                raise serializers.ValidationError({
+                    "start_time": "Start time must be in the future for today's date."
+                })
+
+        return attrs
+    
+
+# ------------------------------
+# Mentor Public Profile Serializer
+# ------------------------------
+from rest_framework import serializers
+from mentorship.models import MentorAvailability
+from mentorship.serializers import MentorAvailabilitySerializer 
+from django.utils.timezone import now
+
+class MentorPublicProfileSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    email = serializers.EmailField(source='user.email')
+    slots = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            'user_id',
+            'email',
+            'full_name',
+            'bio',
+            'experience_years',
+            'profile_picture',
+            'preferred_categories',
+            'languages_known',
+            'slots',
+        ]
+
+    def get_slots(self, obj):
+        upcoming = MentorAvailability.objects.filter(
+            mentor=obj.user,
+            date__gte=now().date()
+        ).order_by('date', 'start_time')
+        return MentorAvailabilitySerializer(upcoming, many=True).data
 
 
 

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'courses',
     'topics',
     'mentorship',
+    'adminpanel',
 
 ]
 
