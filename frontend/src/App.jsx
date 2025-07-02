@@ -1,6 +1,7 @@
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Toast from "./components/common/Toast";
+import { Toaster } from 'react-hot-toast';
 import ConfirmDialog from './components/common/ConfirmDialog';
 
 // Layouts
@@ -32,6 +33,17 @@ import CheckingUpload from './pages/mentor/CheckingUpload';
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageLearner from "./pages/admin/ManageLearner";
 import ManageMentors from "./pages/admin/ManageMentors";
+
+import AdminLearners from './pages/admin/CoursesEntry';
+import LearnerCourses from './pages/admin/LearnerCourses';
+import CourseMainTopics from './pages/admin/CourseMainTopics';
+import Subtopics from './pages/admin/Subtopics';
+import Schedules from './pages/admin/Schedules';
+import Questions from './pages/admin/Questions';
+
+import SessionsPage from './pages/admin/SessionsPage';
+import FeedbackModal from './pages/admin/FeedbackModal';
+import ReviewModal from './pages/admin/ReviewModal';
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -78,6 +90,15 @@ export default function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="learners" element={<ManageLearner />} />
             <Route path="mentors" element={<ManageMentors />} />
+            <Route path="course-entry" element={<AdminLearners />} />
+            <Route path="courses/:learner_id" element={<LearnerCourses />} />
+            <Route path="main-topics/:course_id" element={<CourseMainTopics />} />
+            <Route path="sub-topics/:main_topic_id" element={<Subtopics />} />
+            <Route path="schedules/:main_topic_id" element={<Schedules />} />
+            <Route path="questions/:main_topic_id" element={<Questions />} />
+            <Route path="sessions" element={<SessionsPage />} />
+            <Route path="sessions-feedbacks" element={<FeedbackModal />} />
+            <Route path="sessions-reviews" element={<ReviewModal />} />
           </Route>
 
           {/* Auth Routes */}
@@ -88,6 +109,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
         </Routes>
+        <Toaster position="top-right" reverseOrder={false} />
         <ConfirmDialog />
         <Toast />
       </BrowserRouter>

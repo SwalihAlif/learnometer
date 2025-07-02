@@ -11,8 +11,9 @@ export const postQuestion = async (topicId, data) => {
   return (await axiosInstance.post('topics/questions/', { ...data, main_topic: topicId })).data;
 };
 
-export const updateQuestion = async (id, question_text) => {
-  return (await axiosInstance.put(`topics/questions/${id}/`, { question_text })).data;
+
+export const updateQuestion = async (id, data) => {
+  return (await axiosInstance.put(`topics/questions/${id}/`, data)).data;
 };
 
 
@@ -29,10 +30,9 @@ export const postAnswer = async (questionId, answer_text) => {
   return (await axiosInstance.post('topics/answers/', { question: questionId, answer_text })).data;
 };
 
-export const updateAnswer = async (id, answer_text) => {
-  return (await axiosInstance.put(`topics/answers/${id}/`, { answer_text })).data;
+export const updateAnswer = async (id, data) => {
+  return (await axiosInstance.put(`topics/answers/${id}/`, data)).data;
 };
-
 export const deleteAnswer = async (id) => {
   return await axiosInstance.delete(`topics/answers/${id}/`);
 };

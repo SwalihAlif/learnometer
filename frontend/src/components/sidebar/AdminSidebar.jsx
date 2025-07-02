@@ -21,7 +21,7 @@ const AdminSidebar = () => {
     { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
     { name: 'Manage Learners', icon: Users, path: '/admin/learners' },
     { name: 'Manage Mentors', icon: UserCheck, path: '/admin/mentors' },
-    { name: "Learner's Courses & Contents", icon: BookOpen, path: '/admin/courses' },
+    { name: "Learner's Courses & Contents", icon: BookOpen, path: '/admin/course-entry' },
     { name: 'Sessions', icon: Calendar, path: '/admin/sessions' },
     { name: 'Reviews', icon: MessageSquare, path: '/admin/reviews' },
     { name: 'Premium & Referrals', icon: Crown, path: '/admin/premium' },
