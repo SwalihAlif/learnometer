@@ -7,24 +7,16 @@ const MentorNavbar = () => {
    const navigate = useNavigate();
 
   const handleLogout = async () => {
-  try {
-    const refresh = localStorage.getItem('refresh');
-    console.log("🪙 Refresh token before logout:", refresh); 
-
-    if (!refresh) {
-      alert("Logout failed: No refresh token found.");
-      return;
+    try {
+      await axiosInstance.post('users/logout/'); // no need to pass refresh token
+      navigate('/'); // redirect to login
+    } catch (error) {
+      console.error("Logout failed:", error.response?.data || error.message);
+      alert("Logout failed. Please try again.");
     }
+  };
 
-    await axiosInstance.post('users/logout/', { refresh });
-
-    localStorage.clear();
-    navigate('/');
-  } catch (error) {
-    console.error("Logout failed:", error.response?.data || error.message);
-    alert("Logout failed. Please try again.");
-  }
-};
+  
   return (
     <nav className="w-full h-16 flex items-center justify-between px-6 border-b border-teal-200" style={{ backgroundColor: '#ECFDF5', color: '#064E3B' }}>
       <div className="flex items-center">

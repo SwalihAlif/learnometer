@@ -1,34 +1,34 @@
-import axiosInstance from '../../axios';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axiosInstance from '../../axios';
+import { useAuth } from '../../contexts/AuthContext'; // 👈 import auth context
 import { Mail, Lock, Eye, EyeOff, BookOpen, TrendingUp, Target, Users, Chrome } from 'lucide-react';
 
 const LearnometerLogin = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    rememberMe: false
+    rememberMe: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
+  const { setUser } = useAuth(); // ✅ update context when logged in
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
 
-    // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
-
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -50,59 +50,38 @@ const LearnometerLogin = () => {
     if (!validateForm()) return;
 
     try {
-      const response = await axiosInstance.post('users/token/', {
+      await axiosInstance.post('users/token/', {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
       });
 
-      console.log('Login success:', response.data);
+      // Fetch user profile after successful login
+      const res = await axiosInstance.get('users/me/');
+      const profile = res.data;
+      setUser(profile); // ✅ update global auth context
 
-      // Save tokens
-      localStorage.setItem('access', response.data.access);
-      localStorage.setItem('refresh', response.data.refresh);
-
-      // Save user info
-      localStorage.setItem('email', response.data.email);
-      localStorage.setItem('role', response.data.role);
-
-      // Redirect user based on role
-      const role = response.data.role;
-      if (role === 'Learner') {
-        navigate('/learner');
-      } else if (role === 'Mentor') {
-        navigate('/mentor');
-      } else if (role === 'Admin') {
-        navigate('/admin');
-      } else {
-        navigate('/'); // fallback
-      }
+      // Redirect based on role
+      const role = profile.role;
+      if (role === 'Learner') navigate('/learner');
+      else if (role === 'Mentor') navigate('/mentor');
+      else if (role === 'Admin') navigate('/admin');
+      else navigate('/');
 
     } catch (error) {
       console.error('Login failed:', error.response?.data || error.message);
-
       const errorMessage =
         error.response?.data?.detail ||
         error.response?.data?.non_field_errors?.[0] ||
         error.response?.data?.error ||
         'Login failed. Please try again.';
-
       alert(`Login failed: ${errorMessage}`);
     }
   };
 
-
-
   const handleRegister = (role) => {
-    console.log(`Register as ${role}`);
-    // Handle registration redirect
-    if (role === 'mentor') {
-
-      navigate('/mregister');
-    }
-    else if (role === 'learner') {
-      navigate('/lregister');
-    }
+    role === 'mentor' ? navigate('/mregister') : navigate('/lregister');
   };
+
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">

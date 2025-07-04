@@ -51,9 +51,7 @@ const LearnerProfile = () => {
     const fetchProfile = async () => {
       try {
         const res = await axiosInstance.get("users/profile/", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access")}`,
-          },
+
         });
 
         const data = res.data;
@@ -210,12 +208,12 @@ const LearnerProfile = () => {
       }
 
       // Send PATCH request to update profile
-      const response = await axiosInstance.patch("users/profile/", formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access")}`,
-          "Content-Type": "multipart/form-data"
-        }
-      });
+const response = await axiosInstance.patch("users/profile/", formData, {
+  headers: {
+    "Content-Type": "multipart/form-data",
+  },
+  withCredentials: true, // ensures cookie is sent with request
+});
 
       // Update local state after success
       console.log("Profile updated successfully:", response.data);

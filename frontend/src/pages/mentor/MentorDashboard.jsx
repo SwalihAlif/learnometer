@@ -172,7 +172,7 @@ const MentorDashboard = () => {
                 </div>
                 <div className="flex items-center text-emerald-700">
                   <PhoneIcon className="h-5 w-5 mr-2 text-teal-600" />
-                  {profileData.contact_number || "N/A"}
+                  {profileData.phone || "N/A"}
                 </div>
                 <div className="flex items-center text-emerald-700">
                   <BriefcaseIcon className="h-5 w-5 mr-2 text-teal-600" />

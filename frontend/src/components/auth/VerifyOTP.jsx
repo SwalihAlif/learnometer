@@ -68,13 +68,8 @@ const handleVerifyOTP = async (e) => {
       code: otp.trim(),
     });
 
-    // ✅ Save tokens
-    localStorage.setItem('access', res.data.access);
-    localStorage.setItem('refresh', res.data.refresh);
 
-    // ✅ Save user info
-    localStorage.setItem('email', res.data.email);
-    localStorage.setItem('role', res.data.role);
+
 
     // ✅ Set success message
     setSuccess(res.data.message || 'OTP verified successfully!');

@@ -26,6 +26,9 @@ const SubTopics = () => {
   const [completedCount, setCompletedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [courseName, setCourseName] = useState('');
+const [mainTopicTitle, setMainTopicTitle] = useState('');
+
   const remainingCount = totalCount - completedCount;
 
   // 1. Fetch paginated subtopics for list
@@ -47,26 +50,6 @@ const SubTopics = () => {
     }));
   };
 
-  // 2. Fetch ALL subtopics for chart calculation
-//   const fetchProgressMetrics = async () => {
-//     try {
-//       const res = await axiosInstance.get(`topics/sub-topics/?main_topic_id=${mainTopicId}&limit=1000&offset=0`);
-//       const allSubtopics = res.data.results || [];
-//       const completed = allSubtopics.filter(item => item.completed).length;
-
-//       setCompletedCount(completed);
-//       setTotalCount(allSubtopics.length);
-//       setChartData([
-//         { name: 'Completed', value: completed, color: '#16A34A' },
-//         { name: 'Remaining', value: allSubtopics.length - completed, color: '#9CA3AF' },
-//       ]);
-//       console.log("Total from allSubtopics.length:", allSubtopics.length);
-// console.log("Total from response.count:", res.data.count); // just in case backend provides it
-
-//     } catch (err) {
-//       console.error('Failed to fetch subtopics for chart:', err);
-//     }
-//   };
 
   const fetchProgressMetrics = async () => {
   try {
@@ -94,6 +77,26 @@ console.log("Total from response.count:", completed);
       fetchProgressMetrics();
     }
   }, [mainTopicId]);
+
+  // For Breadcrumb
+
+  useEffect(() => {
+  const fetchMainTopicDetails = async () => {
+    try {
+      const res = await axiosInstance.get(`topics/main-topic/${mainTopicId}/`);
+      const mainTopic = res.data;
+      setMainTopicTitle(mainTopic.title);
+      setCourseName(mainTopic.course_title); // assuming API includes `course_title`
+    } catch (err) {
+      console.error('Failed to fetch main topic details:', err);
+    }
+  };
+
+  if (mainTopicId) {
+    fetchMainTopicDetails();
+  }
+}, [mainTopicId]);
+
 
   // === CRUD Actions ===
 
@@ -188,15 +191,23 @@ console.log("Total from response.count:", completed);
     <div className="min-h-screen bg-[#F9FAFB] p-4">
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
-        <nav className="text-sm text-gray-500 mb-6">
-          My Courses / Web Development Fundamentals / HTML Fundamentals / Subtopics
-        </nav>
+        {/* Breadcrumb */}
+<nav className="text-sm text-gray-500 mb-6">
+  {courseName && mainTopicTitle ? (
+    <>
+      My Courses / {courseName} / {mainTopicTitle} / Subtopics
+    </>
+  ) : (
+    'Loading...'
+  )}
+</nav>
+
 
         {/* Main Topic Header */}
         <div className="bg-[#4F46E5] text-white py-6 px-4 rounded-lg mb-6">
           <div className="flex items-center gap-3 mb-2">
             <BookOpen className="w-8 h-8" />
-            <h1 className="text-2xl font-bold">HTML Fundamentals</h1>
+           <h1 className="text-2xl font-bold">{mainTopicTitle || 'Loading...'}</h1>
           </div>
           <p className="text-indigo-100">Track your progress by marking what you've learned</p>
         </div>
@@ -314,7 +325,7 @@ console.log("Total from response.count:", completed);
           <div className="flex items-center gap-3 mb-6">
             <TrendingUp className="w-6 h-6 text-[#4F46E5]" />
             <h2 className="text-xl font-bold text-[#1E1B4B]">
-              Your Progress in HTML Fundamentals
+              Your Progress in {mainTopicTitle || 'Loading...'}
             </h2>
           </div>
 
@@ -345,9 +356,11 @@ console.log("Total from response.count:", completed);
             {/* Stats */}
             <div className="flex flex-col justify-center space-y-4">
               <div className="text-center lg:text-left">
-                <div className="text-3xl font-bold text-[#1E1B4B] mb-2">
-                  {Math.round((completedCount / totalCount) * 100)}%
-                </div>
+    <div className="text-3xl font-bold text-[#1E1B4B] mb-2">
+      {totalCount > 0
+        ? `${Math.round((completedCount / totalCount) * 100)}%`
+        : 'No progress yet'}
+    </div>
                 <div className="text-gray-600">Overall Progress</div>
               </div>
 
@@ -361,8 +374,8 @@ console.log("Total from response.count:", completed);
                   <div className="text-sm text-gray-800">Remaining</div>
                 </div>
                 <div className="p-3 bg-[#4F46E5] bg-opacity-10 rounded-lg">
-                  <div className="text-2xl font-bold text-[#4F46E5]">{totalCount}</div>
-                  <div className="text-sm text-[#4F46E5]">Total</div>
+                  <div className="text-2xl font-bold text-white">{totalCount}</div>
+                  <div className="text-sm text-white">Total</div>
                 </div>
               </div>
 

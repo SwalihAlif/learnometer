@@ -19,10 +19,7 @@ const GoogleLoginButton = () => {
 
       console.log('✅ SSO login success:', response.data);
 
-      localStorage.setItem('access', response.data.access);
-      localStorage.setItem('refresh', response.data.refresh);
-      localStorage.setItem('email', response.data.email);
-      localStorage.setItem('role', response.data.role);
+
 
       const role = response.data.role;
       if (role === 'Learner') navigate('/learner');

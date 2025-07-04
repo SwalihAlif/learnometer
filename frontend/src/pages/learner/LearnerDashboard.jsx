@@ -227,7 +227,7 @@ const LearnerDashboard = () => {
                     {profileData.full_name || "Unknown User"}
                   </h3>
                   <p className="text-gray-600">{profileData.email || "No email provided"}</p>
-                  <p className="text-gray-600">{profileData.contact_number || "No contact number"}</p>
+                  <p className="text-gray-600">{profileData.phone || "No contact number"}</p>
 
                   {/* Edit Button */}
                   <button

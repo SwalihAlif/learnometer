@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Toast from "./components/common/Toast";
 import { Toaster } from 'react-hot-toast';
 import ConfirmDialog from './components/common/ConfirmDialog';
+import { AuthProvider } from './contexts/AuthContext'; //import  context
 
 // Layouts
 import AdminLayout from "./layouts/AdminLayout";
@@ -53,67 +54,69 @@ import VerifyOTP from "./components/auth/VerifyOTP";
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 
+
 export default function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      <BrowserRouter>
-        <Routes>
-          {/* Learner Layout */}
-          <Route path="/learner" element={<LearnerLayout />}>
-            <Route index element={<LearnerDashboard />} />
-            <Route path="my-courses" element={<LearnerMyCourses />} />
-            <Route path="main-topics/:courseId" element={<MainTopics />} />
-            <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
-            <Route path="profile" element={<LearnerProfile />} />
-            <Route path="main-topics/:topicId/notes" element={<NotesPage />} />
-            <Route path="schedule" element={<LearningSchedulePage />} />
-            <Route path="quiz/:mainTopicId" element={<Quiz />} />
-            <Route path="all-mentors" element={<MentorList />} />
-            <Route path="book-session/:mentorId" element={<BookSession />} />
-            <Route path="my-sessions" element={<LearnerMySessions />} />
+      <AuthProvider> {/* ✅ Wrap everything inside */}
+        <BrowserRouter>
+          <Routes>
+            {/* Learner Layout */}
+            <Route path="/learner" element={<LearnerLayout />}>
+              <Route index element={<LearnerDashboard />} />
+              <Route path="my-courses" element={<LearnerMyCourses />} />
+              <Route path="main-topics/:courseId" element={<MainTopics />} />
+              <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
+              <Route path="profile" element={<LearnerProfile />} />
+              <Route path="main-topics/:topicId/notes" element={<NotesPage />} />
+              <Route path="schedule" element={<LearningSchedulePage />} />
+              <Route path="quiz/:mainTopicId" element={<Quiz />} />
+              <Route path="all-mentors" element={<MentorList />} />
+              <Route path="book-session/:mentorId" element={<BookSession />} />
+              <Route path="my-sessions" element={<LearnerMySessions />} />
+            </Route>
 
-            
-          </Route>
+            {/* Mentor Layout */}
+            <Route path="/mentor" element={<MentorLayout />}>
+              <Route index element={<MentorDashboard />} />
+              <Route path="profile" element={<MentorProfile />} />
+              <Route path="manage-availability" element={<ManageAvailability />} />
+              <Route path="my-sessions" element={<MentorMySessions />} />
+              <Route path="upload" element={<CheckingUpload />} />
+            </Route>
 
-          {/* Mentor Layout */}
-          <Route path="/mentor" element={<MentorLayout />}>
-            <Route index element={<MentorDashboard />} />
-            <Route path="profile" element={<MentorProfile />} />
-            <Route path="manage-availability" element={<ManageAvailability />} />
-            <Route path="my-sessions" element={<MentorMySessions />} />
-            <Route path="upload" element={<CheckingUpload />} />
+            {/* Admin Layout */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="learners" element={<ManageLearner />} />
+              <Route path="mentors" element={<ManageMentors />} />
+              <Route path="course-entry" element={<AdminLearners />} />
+              <Route path="courses/:learner_id" element={<LearnerCourses />} />
+              <Route path="main-topics/:course_id" element={<CourseMainTopics />} />
+              <Route path="sub-topics/:main_topic_id" element={<Subtopics />} />
+              <Route path="schedules/:main_topic_id" element={<Schedules />} />
+              <Route path="questions/:main_topic_id" element={<Questions />} />
+              <Route path="sessions" element={<SessionsPage />} />
+              <Route path="sessions-feedbacks" element={<FeedbackModal />} />
+              <Route path="sessions-reviews" element={<ReviewModal />} />
+            </Route>
 
-          </Route>
+            {/* Auth Routes */}
+            <Route path="/" element={<LoginPage />} />
+            <Route path="/lregister" element={<LearnerRegistration />} />
+            <Route path="/mregister" element={<RegisterMentor />} />
+            <Route path="/verify-otp" element={<VerifyOTP />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
+          </Routes>
 
-          {/* Admin Layout */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="learners" element={<ManageLearner />} />
-            <Route path="mentors" element={<ManageMentors />} />
-            <Route path="course-entry" element={<AdminLearners />} />
-            <Route path="courses/:learner_id" element={<LearnerCourses />} />
-            <Route path="main-topics/:course_id" element={<CourseMainTopics />} />
-            <Route path="sub-topics/:main_topic_id" element={<Subtopics />} />
-            <Route path="schedules/:main_topic_id" element={<Schedules />} />
-            <Route path="questions/:main_topic_id" element={<Questions />} />
-            <Route path="sessions" element={<SessionsPage />} />
-            <Route path="sessions-feedbacks" element={<FeedbackModal />} />
-            <Route path="sessions-reviews" element={<ReviewModal />} />
-          </Route>
-
-          {/* Auth Routes */}
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/lregister" element={<LearnerRegistration />} />
-          <Route path="/mregister" element={<RegisterMentor />} />
-          <Route path="/verify-otp" element={<VerifyOTP />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
-        </Routes>
-        <Toaster position="top-right" reverseOrder={false} />
-        <ConfirmDialog />
-        <Toast />
-      </BrowserRouter>
+          <Toaster position="top-right" reverseOrder={false} />
+          <ConfirmDialog />
+          <Toast />
+        </BrowserRouter>
+      </AuthProvider>
     </GoogleOAuthProvider>
   );
 }
+
 

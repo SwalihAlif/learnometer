@@ -66,7 +66,7 @@ const LearnerMySessions = () => {
   const handleGetFeedback = async (sessionId) => {
     try {
       const res = await axiosInstance.get(`mentorship/sessions/${sessionId}/feedback/`);
-      console.log("Received feedback data:", res.data); // ✅ Log actual response data
+      console.log("Received feedback data:", res.data); 
       setFeedbackData(res.data);
       setShowFeedbackModal(true);
     } catch (err) {
@@ -178,7 +178,7 @@ const LearnerMySessions = () => {
                             controls
                             className="max-w-[70%] max-h-56 object-contain rounded-lg border border-gray-300 shadow-md"
                           >
-                            <source src={feedbackData.video} />
+                            <source src={feedbackData.video} type="video/mp4" />
                             Your browser does not support the video tag.
                           </video>
                         </div>
@@ -191,7 +191,7 @@ const LearnerMySessions = () => {
                         <h4 className="font-semibold text-indigo-900 mb-2">Audio:</h4>
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                           <audio controls className="w-full">
-                            <source src={feedbackData.audio} />
+                            <source src={feedbackData.audio} type="audio/mp4" />
                             Your browser does not support the audio tag.
                           </audio>
                         </div>

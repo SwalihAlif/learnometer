@@ -45,41 +45,40 @@ const MentorProfile = () => {
   }
 
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await axiosInstance.get("users/profile/", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access")}`,
-          },
-        });
+useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const res = await axiosInstance.get("users/profile/", {
+        withCredentials: true, // ✅ Ensure cookies are sent automatically
+      });
 
-        const data = res.data;
-        setProfile(data);
-        setSelectedCategories(data.preferred_categories || []);
-        setSelectedLanguages(data.languages_known || []);
+      const data = res.data;
+      setProfile(data);
+      setSelectedCategories(data.preferred_categories || []);
+      setSelectedLanguages(data.languages_known || []);
 
-        // ✅ Format incoming availability
-        const loadedAvailability = {};
-        const days = Object.keys(availability); // use existing structure
-        for (let day of days) {
-          const dayData = data.availability_schedule?.[day];
-          loadedAvailability[day] = {
-            enabled: !!(dayData?.start && dayData?.end),
-            start: dayData?.start || '',
-            end: dayData?.end || '',
-          };
-        }
-
-        setAvailability(loadedAvailability);
-      } catch (err) {
-        console.error("Error fetching mentor profile:", err);
-        alert("Failed to load profile");
+      // ✅ Format incoming availability
+      const loadedAvailability = {};
+      const days = Object.keys(availability); // use existing structure
+      for (let day of days) {
+        const dayData = data.availability_schedule?.[day];
+        loadedAvailability[day] = {
+          enabled: !!(dayData?.start && dayData?.end),
+          start: dayData?.start || '',
+          end: dayData?.end || '',
+        };
       }
-    };
 
-    fetchProfile();
-  }, []);
+      setAvailability(loadedAvailability);
+    } catch (err) {
+      console.error("Error fetching mentor profile:", err);
+      alert("Failed to load profile");
+    }
+  };
+
+  fetchProfile();
+}, []);
+
 
   // fetch categories
   useEffect(() => {
@@ -169,59 +168,59 @@ const MentorProfile = () => {
 
   // Handle form submission
 
-  const handleSave = async () => {
-    setIsLoading(true);
+const handleSave = async () => {
+  setIsLoading(true);
 
-    try {
-      const formData = new FormData();
+  try {
+    const formData = new FormData();
 
-      // Add editable profile fields
-      if (profile.full_name) formData.append("full_name", profile.full_name);
-      if (profile.phone) formData.append("phone", profile.phone);
-      if (profile.bio) formData.append("bio", profile.bio);
-      if (profile.experience_years) formData.append("experience_years", profile.experience_years);
-      if (profile.linkedin_profile) formData.append("linkedin_profile", profile.linkedin_profile);
-      if (profile.portfolio_website) formData.append("portfolio_website", profile.portfolio_website);
+    // Add editable profile fields
+    if (profile.full_name) formData.append("full_name", profile.full_name);
+    if (profile.phone) formData.append("phone", profile.phone);
+    if (profile.bio) formData.append("bio", profile.bio);
+    if (profile.experience_years) formData.append("experience_years", profile.experience_years);
+    if (profile.linkedin_profile) formData.append("linkedin_profile", profile.linkedin_profile);
+    if (profile.portfolio_website) formData.append("portfolio_website", profile.portfolio_website);
 
-      // Append availability as a JSON string
-      if (availability && typeof availability === 'object') {
-        formData.append("availability_schedule", JSON.stringify(availability));
-      }
-
-      // Append multi-select arrays
-      selectedCategories.forEach(category => {
-        formData.append("preferred_categories", category);
-      });
-
-      selectedLanguages.forEach(language => {
-        formData.append("languages_known", language);
-      });
-
-      // Append profile picture if selected
-      if (profilePic) {
-        formData.append("profile_picture", profilePic);
-      }
-
-      // Send PATCH request to update profile
-      const response = await axiosInstance.patch("users/profile/", formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access")}`,
-          "Content-Type": "multipart/form-data"
-        }
-      });
-
-      // Update local state after success
-      console.log("Profile updated successfully:", response.data);
-      alert("Profile updated successfully.");
-      setProfile(response.data);
-
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      alert("Failed to update profile. Please check console for errors.");
-    } finally {
-      setIsLoading(false);
+    // Append availability as a JSON string
+    if (availability && typeof availability === 'object') {
+      formData.append("availability_schedule", JSON.stringify(availability));
     }
-  };
+
+    // Append multi-select arrays
+    selectedCategories.forEach(category => {
+      formData.append("preferred_categories", category);
+    });
+
+    selectedLanguages.forEach(language => {
+      formData.append("languages_known", language);
+    });
+
+    // Append profile picture if selected
+    if (profilePic) {
+      formData.append("profile_picture", profilePic);
+    }
+
+    // ✅ Send PATCH request with cookies (no need for Authorization header)
+    const response = await axiosInstance.patch("users/profile/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      withCredentials: true, // 🔥 Ensure cookies are sent
+    });
+
+    // Handle success
+    console.log("Profile updated successfully:", response.data);
+    alert("Profile updated successfully.");
+    setProfile(response.data);
+
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    alert("Failed to update profile. Please check console for errors.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
 
   return (
@@ -377,7 +376,7 @@ const MentorProfile = () => {
               <div>
                 <label className="block text-sm font-semibold text-emerald-800 mb-2">
                   <Target size={16} className="inline mr-2" />
-                  Learning Goals
+                  Your Vision & Mission
                 </label>
                 <textarea
                   value={profile.learning_goals}

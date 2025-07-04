@@ -106,66 +106,116 @@ const LearnerRegistration = () => {
     setErrors(updatedErrors);
   };
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
+const handleRegister = async (e) => {
+  e.preventDefault();
 
-    if (!validateAllFields()) return;
+  if (!validateAllFields()) return;
 
-    const { fullName, email, password, confirmPassword, phone } = formData;
+  const { fullName, email, password, confirmPassword, phone } = formData;
 
-    // Prepare form data
-    const data = new FormData();
-    data.append('full_name', fullName);
-    data.append('email', email);
-    data.append('password', password);
-    data.append('confirm_password', confirmPassword);
-    data.append('phone', phone);
+  const data = new FormData();
+  data.append('full_name', fullName);
+  data.append('email', email);
+  data.append('password', password);
+  data.append('confirm_password', confirmPassword);
+  data.append('phone', phone);
 
-    try {
-      const response = await axiosInstance.post('users/register/learner/', data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+  try {
+    const response = await axiosInstance.post('users/register/learner/', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
 
-      console.log('Mentor registered successfully:', response.data);
+    console.log('Learner registered successfully:', response.data);
 
+    navigate('/verify-otp', {
+      state: {
+        email,
+        role: 'learner',
+        message: 'OTP sent to your email. Please verify to activate your account.',
+      },
+    });
+  } catch (error) {
+    const errorMsg = error.response?.data?.non_field_errors?.[0] || error.response?.data?.error;
+
+    if (errorMsg?.includes('OTP already sent')) {
       navigate('/verify-otp', {
         state: {
           email,
-          role: 'learner'
-        }
+          role: 'learner',
+          message: 'OTP was already sent to your email. Please verify.',
+        },
       });
-    } catch (error) {
-      console.error('Registration failed:', error.response?.data || error.message);
-      alert('Registration failed. Please check your inputs or try again.');
+    } else if (error.response?.data) {
+      setErrors(error.response.data); // show field-specific errors if backend returns
+    } else {
+      console.error('Unexpected error:', error.message);
+      alert('Something went wrong. Please try again later.');
     }
-  };
+  }
+};
 
-    const loginWithGoogle = useGoogleLogin({
-  flow: 'auth-code',
+
+
+
+const loginWithGoogle = useGoogleLogin({
+  flow: 'implicit', // or remove it to use default implicit flow
+
   onSuccess: async (tokenResponse) => {
+    console.log("✅ Google login successful. Token response:", tokenResponse);
+
+    const accessToken = tokenResponse?.access_token;
+
+    if (!accessToken) {
+      console.error("❌ No access_token received in tokenResponse.");
+      alert("Google login failed: Missing access token.");
+      return;
+    }
+
     try {
+      // Step 1: Fetch user info from Google using access_token
+      const googleUser = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }).then((res) => res.json());
+
+      console.log("🧑‍💼 Google user info:", googleUser);
+
+      const { email, name } = googleUser;
+
+      if (!email || !name) {
+        console.error("❌ Missing required user info:", googleUser);
+        alert("Google account data is incomplete. Try a different account.");
+        return;
+      }
+
+      // Step 2: Send user info to your backend
       const res = await axiosInstance.post('users/login/google/', {
-        token: tokenResponse.code,
-        role: 'Learner',
+        email,
+        full_name: name,
+        role: 'Learner', // 🔁 you can make this dynamic if needed
       });
 
-      localStorage.setItem('access', res.data.access);
-      localStorage.setItem('refresh', res.data.refresh);
-      localStorage.setItem('email', res.data.email);
-      localStorage.setItem('role', res.data.role);
+      console.log("✅ Backend login successful. Response:", res.data);
 
+      // Step 4: Redirect based on role
       navigate(res.data.role === 'Mentor' ? '/mentor' : '/learner');
     } catch (error) {
-      console.error(error);
-      alert('Google SSO login failed');
+      console.error("❌ Login failed:", error.response?.data || error.message);
+      alert("Google SSO login failed. Please try again.");
     }
   },
-  onError: () => {
-    alert('Google login failed');
+
+  onError: (error) => {
+    console.error("❌ Google login popup failed:", error);
+    alert("Google login failed. Please try again.");
   },
 });
+
+
+
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] py-8 px-4">
