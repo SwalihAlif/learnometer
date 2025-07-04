@@ -61,8 +61,8 @@ GOOGLE_REDIRECT_URI = 'http://localhost:5173/callback'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.TokenAuthentication', # added when sso is not working..
+        'users.authentication.CookieJWTAuthentication',  # custom class for httponlycookies 
+
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,  # You can adjust this number as needed
@@ -230,3 +230,7 @@ from .logging_config import LOGGING
 # gemini api key 
 GOOGLE_API_KEY = config("GOOGLE_API_KEY")
 COHERE_API_KEY = config("COHERE_API_KEY")
+
+
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False

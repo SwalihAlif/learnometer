@@ -8,6 +8,9 @@ from cloudinary.utils import cloudinary_url
 
 User = get_user_model()
 
+# ------------------------------
+# Learner User Serializer
+# ------------------------------
 class LearnerUserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='user_profile.full_name')
 
@@ -15,7 +18,9 @@ class LearnerUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'email', 'full_name', 'created_at']
 
-
+# ------------------------------
+# Course Serializer
+# ------------------------------
 class CourseSerializer(serializers.ModelSerializer):
     category = serializers.StringRelatedField()
 
@@ -23,13 +28,17 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = ['id', 'title', 'description', 'category', 'created_at']
 
-
+# ------------------------------
+# Main Topics Serializer
+# ------------------------------
 class MainTopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = MainTopic
         fields = ['id', 'title', 'description', 'created_at']
 
-
+# ------------------------------
+# Sub Topics Serializer
+# ------------------------------
 class SubTopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubTopic
@@ -96,7 +105,7 @@ class FeedbackSerializer(serializers.ModelSerializer):
 
     def get_audio(self, obj):
         if obj.audio:
-            url, _ = cloudinary_url(obj.audio.public_id, resource_type="video")  # audio is stored as video
+            url, _ = cloudinary_url(obj.audio.public_id, resource_type="video")  
             return url
         return None
 

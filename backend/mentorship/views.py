@@ -15,6 +15,7 @@ from .serializers import (
     FeedbackSerializer
 
 )
+from django.core.exceptions import ObjectDoesNotExist
 from users.serializers import UserProfileSerializer
 from django.utils import timezone
 
@@ -252,67 +253,58 @@ logger = logging.getLogger(__name__)
 
 class FeedbackUploadAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    def post(self, request):
+        data = request.data.dict()
 
-    def post(self, request, *args, **kwargs):
-        logger.debug("Incoming POST request for feedback upload")
-        logger.debug(f"Uploaded files: {request.FILES}")
-
-        session_id = request.data.get("session")
-        if not session_id:
-            return Response({"detail": "Session ID is required."}, status=400)
-
-        # Check session validity
+        session_id = data.get("session")
         try:
             session = SessionBooking.objects.get(id=session_id)
         except SessionBooking.DoesNotExist:
-            logger.error(f"Session with ID {session_id} not found")
-            return Response({"detail": "Session not found."}, status=404)
+            return Response({"detail": "Invalid session ID"}, status=400)
 
-        if request.user != session.mentor:
-            logger.warning(f"User ID {request.user.id} not authorized to give feedback for session {session_id}")
-            return Response({"detail": "Only mentors can give feedback."}, status=403)
+        # Handle video upload manually
+        if 'video' in request.FILES:
+            video_file = request.FILES['video']
+            video_result = cloudinary.uploader.upload(video_file, resource_type='video')
+            data['video'] = video_result['public_id']
 
-        if hasattr(session, 'feedback'):
-            logger.info(f"Feedback already exists for session ID {session_id}")
-            return Response({"detail": "Feedback already exists."}, status=400)
+        # Handle audio upload manually (also resource_type='video')
+        if 'audio' in request.FILES:
+            audio_file = request.FILES['audio']
+            audio_result = cloudinary.uploader.upload(audio_file, resource_type='video')
+            data['audio'] = audio_result['public_id']
 
-        # Avoid deepcopy error
-        data = request.data.dict()
-        data['giver'] = request.user.id
-        data['receiver'] = session.learner.id
-
-        try:
-            # Upload video if present
-            if 'video' in request.FILES:
-                video_file = request.FILES['video']
-                video_upload = cloudinary_upload(video_file, resource_type="video")
-                data['video'] = video_upload['public_id']
-
-            # Upload audio if present
-            if 'audio' in request.FILES:
-                audio_file = request.FILES['audio']
-                audio_upload = cloudinary_upload(audio_file, resource_type="video")
-                data['audio'] = audio_upload['public_id']
-
-        except CloudinaryError as e:
-            logger.error(f"Cloudinary upload error: {str(e)}")
-            return Response({"detail": "Invalid video/audio file upload."}, status=400)
-
-        # Serialize and save
+        # Let serializer handle the rest (image, message)
         serializer = FeedbackSerializer(data=data)
         if serializer.is_valid():
-            try:
-                serializer.save(giver=request.user, receiver=session.learner)
-                logger.info(f"Feedback successfully created with ID {serializer.instance.id}")
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                logger.exception(f"Unexpected error while saving feedback: {str(e)}")
-                return Response({"detail": "An unexpected error occurred."}, status=500)
-        else:
-            logger.error(f"Serializer validation failed: {serializer.errors}")
-            return Response(serializer.errors, status=400)
+            serializer.save(giver=request.user, receiver=session.learner)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# ----------------------------
+# Mentor Feedback details
+# ----------------------------
+class FeedbackDetailAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, session_id):
+        logger.debug(f"Feedback GET request received for session ID: {session_id} by user ID: {request.user.id}")
+
+        try:
+            session = SessionBooking.objects.get(id=session_id)
+            feedback = session.feedback  # May raise RelatedObjectDoesNotExist
+        except (SessionBooking.DoesNotExist, ObjectDoesNotExist):
+            logger.warning(f"Feedback not found or session does not exist for session ID: {session_id}")
+            return Response({"detail": "Feedback not found."}, status=404)
+
+        if session.learner != request.user:
+            logger.warning(f"Unauthorized access attempt: User ID {request.user.id} is not the learner of session {session_id}")
+            return Response({"detail": "Not authorized."}, status=403)
+
+        logger.info(f"Feedback retrieved for session ID: {session_id} by learner ID: {request.user.id}")
+        serializer = FeedbackSerializer(feedback)
+        return Response(serializer.data)
 
 #cheking vie............................
 
@@ -346,23 +338,3 @@ class CheckingUploadView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-# ----------------------------
-# Mentor Feedback details
-# ----------------------------
-class FeedbackDetailAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, session_id):
-        try:
-            session = SessionBooking.objects.get(id=session_id)
-            feedback = session.feedback
-        except (SessionBooking.DoesNotExist, Feedback.DoesNotExist):
-            return Response({"detail": "Feedback not found."}, status=404)
-
-        # Only learner can view the feedback
-        if session.learner != request.user:
-            return Response({"detail": "Not authorized."}, status=403)
-
-        serializer = FeedbackSerializer(feedback)
-        return Response(serializer.data)

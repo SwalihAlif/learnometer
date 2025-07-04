@@ -2,11 +2,14 @@ from rest_framework import serializers
 from .models import MainTopic, SubTopic, Question, Answer, Schedule
 
 class MainTopicSerializer(serializers.ModelSerializer):
+    course_title = serializers.SerializerMethodField()
     class Meta:
         model = MainTopic
-        fields = ['id', 'course', 'title', 'description', 'created_at', 'created_by']
+        fields = ['id', 'course', 'title', 'description', 'created_at', 'created_by', 'course_title',]
 
         read_only_fields = ['created_by']
+    def get_course_title(self, obj):
+        return obj.course.title if obj.course else None
 
 # serializers.py
 

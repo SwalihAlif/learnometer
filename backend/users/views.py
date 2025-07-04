@@ -7,6 +7,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import serializers
 from .models import User, Role, OTP
 from .serializers import UserRegisterSerializer, MyTokenObtainPairSerializer, OTPVerifySerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -19,12 +20,139 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth import get_user_model
 from .serializers import OTPVerifySerializer
 from rest_framework.generics import RetrieveAPIView
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from django.utils import timezone
+
 
 
 logger = logging.getLogger("users")
 
-class MyTokenObtainPairView(TokenObtainPairView):
-    serializer_class = MyTokenObtainPairSerializer
+
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from django.utils import timezone
+from datetime import timedelta
+from django.conf import settings
+from rest_framework.response import Response
+
+class CookieTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        
+        if response.status_code == 200:
+            access_token = response.data.get("access")
+            refresh_token = response.data.get("refresh")
+            access_expiry = timezone.now() + timedelta(minutes=30)
+            refresh_expiry = timezone.now() + timedelta(days=1)
+
+            # Remove tokens from response body
+            response.data.pop("access", None)
+            response.data.pop("refresh", None)
+
+            # Set HttpOnly cookies
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/",
+                max_age=1800,
+                
+            )
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/",
+                max_age=86400,
+                
+            )
+
+        return response
+    
+
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+
+class CookieTokenRefreshView(APIView):
+    def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+        if not refresh_token:
+            return Response({"detail": "No refresh token."}, status=401)
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            new_access = refresh.access_token
+
+            # If refresh rotation is enabled:
+            if settings.SIMPLE_JWT.get("ROTATE_REFRESH_TOKENS", False):
+                new_refresh = str(refresh)
+                refresh.set_jti()
+                refresh.set_exp()
+
+                response = Response({"message": "Tokens rotated"})
+                response.set_cookie(
+                    key="refresh_token",
+                    value=new_refresh,
+                    httponly=True,
+                    secure=not settings.DEBUG,
+                    samesite="Lax",
+                    path="/",
+                    expires=timezone.now() + refresh.lifetime,
+                )
+            else:
+                response = Response({"message": "Access token refreshed"})
+
+            response.set_cookie(
+                key="access_token",
+                value=str(new_access),
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/",
+                expires=timezone.now() + new_access.lifetime,
+            )
+            return response
+
+        except (TokenError, InvalidToken):
+            return Response({"detail": "Invalid refresh token."}, status=401)
+
+from rest_framework.views import APIView
+
+class LogoutView(APIView):
+    def post(self, request):
+        response = Response({"message": "Logged out successfully"})
+
+        response.delete_cookie("access_token", path="/")
+        response.delete_cookie("refresh_token", path="/")
+
+        return response
+    
+
+# users/views.py
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import UserProfile
+from .serializers import UserProfileSerializer
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            profile = request.user.user_profile
+        except UserProfile.DoesNotExist:
+            return Response({'detail': 'User profile not found.'}, status=404)
+
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+
+
 
 import requests
 from django.conf import settings
@@ -37,44 +165,57 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
 class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         logger.info(f"Incoming SSO request data: {request.data}")
-        auth_code = request.data.get('token')
-        role_input = request.data.get('role')  # 'Mentor' or 'Learner'
 
-        if not auth_code or not role_input:
-            return Response({'error': 'Token and role required'}, status=400)
+        role_input = request.data.get('role')
+
+        if not role_input:
+            return Response({'error': 'Role is required'}, status=400)
 
         try:
-            # Exchange auth code for tokens
-            token_response = requests.post(
-                'https://oauth2.googleapis.com/token',
-                data={
-                    'code': auth_code,
-                    'client_id': settings.GOOGLE_CLIENT_ID,
-                    'client_secret': settings.GOOGLE_CLIENT_SECRET,
-                    'redirect_uri': settings.GOOGLE_REDIRECT_URI,
-                    'grant_type': 'authorization_code'
-                },
-                headers={'Content-Type': 'application/x-www-form-urlencoded'}
-            )
-
-            if token_response.status_code != 200:
-                logger.error(f"Token exchange failed: {token_response.text}")
-                return Response({'error': 'Failed to exchange token'}, status=400)
-
-            token_data = token_response.json()
-            id_token_str = token_data.get('id_token')
-
-            idinfo = id_token.verify_oauth2_token(
-                id_token_str, google_requests.Request(), settings.GOOGLE_CLIENT_ID
-            )
-
-            email = idinfo.get('email')
-            full_name = idinfo.get('name', '')
-
             role_obj = Role.objects.get(name=role_input)
+        except Role.DoesNotExist:
+            logger.error("Role not found")
+            return Response({'error': 'Invalid role'}, status=400)
+
+        # ✅ 1. If id_token is present (original flow)
+        id_token_str = request.data.get('id_token')
+        if id_token_str:
+            try:
+                idinfo = id_token.verify_oauth2_token(
+                    id_token_str,
+                    google_requests.Request(),
+                    settings.GOOGLE_CLIENT_ID
+                )
+
+                email = idinfo.get('email')
+                full_name = idinfo.get('name', '')
+
+                if not email:
+                    return Response({'error': 'Email not found in Google token'}, status=400)
+
+            except ValueError as ve:
+                logger.error(f"Token verification error: {ve}")
+                return Response({'error': 'Invalid token'}, status=400)
+
+        else:
+            # ✅ 2. Fallback: use email + full_name directly (access_token flow)
+            email = request.data.get('email')
+            full_name = request.data.get('full_name', '')
+
+            if not email:
+                return Response({'error': 'Email is required'}, status=400)
+
+        # ✅ Common part: register or login user
+        try:
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={'role': role_obj}
@@ -92,12 +233,6 @@ class GoogleLoginView(APIView):
                 'role': user.role.name
             })
 
-        except Role.DoesNotExist:
-            logger.error("Role not found")
-            return Response({'error': 'Invalid role'}, status=400)
-        except ValueError as ve:
-            logger.error(f"Token verification error: {ve}")
-            return Response({'error': 'Invalid token'}, status=400)
         except Exception as e:
             logger.exception("SSO error")
             return Response({'error': 'SSO login failed'}, status=500)
@@ -116,9 +251,24 @@ class RegisterMentorView(generics.CreateAPIView):
     
     def perform_create(self, serializer):
         with transaction.atomic():
-            user = serializer.save(is_active=False)  # Deactivate until OTP verified
+            email = serializer.validated_data.get("email")
+            
+            existing_user = User.objects.filter(email=email).first()
+            
+            if existing_user:
+                if existing_user.is_active:
+                    raise serializers.ValidationError("Email is already registered and verified.")
+                else:
+                    # User exists but is not verified → resend OTP
+                    otp = OTP.objects.create(user=existing_user)
+                    send_otp_email(existing_user.email, otp.code)
+                    raise serializers.ValidationError("OTP already sent to this email. Please verify.")
+
+            # If user does not exist, create one
+            user = serializer.save(is_active=False)
             otp = OTP.objects.create(user=user)
             send_otp_email(user.email, otp.code)
+
 
 class RegisterLearnerView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -129,55 +279,106 @@ class RegisterLearnerView(generics.CreateAPIView):
         context = super().get_serializer_context()
         context["role"] = get_object_or_404(Role, name="Learner")
         return context
-    
+
     def perform_create(self, serializer):
         with transaction.atomic():
-            user = serializer.save(is_active=False)  # Deactivate until OTP verified
+            email = serializer.validated_data.get("email")
+
+            existing_user = User.objects.filter(email=email).first()
+
+            if existing_user:
+                if existing_user.is_active:
+                    raise serializers.ValidationError("Email is already registered and verified.")
+                else:
+                    # User exists but is not verified → resend OTP
+                    otp = OTP.objects.create(user=existing_user)
+                    send_otp_email(existing_user.email, otp.code)
+                    raise serializers.ValidationError("OTP already sent to this email. Please verify.")
+
+            # If user does not exist, create one
+            user = serializer.save(is_active=False)  # Deactivate until OTP is verified
             otp = OTP.objects.create(user=user)
             send_otp_email(user.email, otp.code)
 
 
 User = get_user_model()
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import User, OTP
+from rest_framework import status
+from django.conf import settings
+
 class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        from .serializers import OTPVerifySerializer
+
         serializer = OTPVerifySerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data['email']
-            code = serializer.validated_data['code']
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
 
-            try:
-                user = User.objects.get(email=email)
-                otp = OTP.objects.filter(user=user, code=code, is_verified=False).latest('created_at')
+        email = serializer.validated_data['email']
+        code = serializer.validated_data['code']
 
-                if otp.is_expired():
-                    return Response({"error": "OTP has expired. Please request a new one."}, status=400)
+        try:
+            user = User.objects.get(email=email)
+            otp = OTP.objects.filter(user=user, code=code, is_verified=False).latest('created_at')
 
-                # Mark OTP and user as verified/active
-                otp.is_verified = True
-                otp.save()
-                user.is_active = True
-                user.save()
+            if otp.is_expired():
+                return Response({"error": "OTP has expired. Please request a new one."}, status=400)
 
-                # ✅ Generate JWT tokens
-                refresh = RefreshToken.for_user(user)
+            # ✅ Mark OTP + user as verified
+            otp.is_verified = True
+            otp.save()
+            user.is_active = True
+            user.save()
 
-                return Response({
-                    "message": "OTP verified successfully.",
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                    "email": user.email,
-                    "role": user.role.name if user.role else None,
-                })
+            # ✅ Issue tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
 
-            except OTP.DoesNotExist:
-                return Response({"error": "Invalid or expired OTP."}, status=400)
-            except User.DoesNotExist:
-                return Response({"error": "User with this email does not exist."}, status=400)
+            # ✅ Response with role for frontend redirect
+            response = Response({
+                "message": "OTP verified successfully.",
+                "role": user.role.name if user.role else None,
+            })
 
-        return Response(serializer.errors, status=400)
+            # ✅ Set secure HttpOnly cookies
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/",
+                max_age=1800,
+            )
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/",
+                max_age=86400,
+            )
+
+            # ✅ (Optional) Remove from body if you had raw tokens there
+            response.data.pop("access", None)
+            response.data.pop("refresh", None)
+
+            return response
+
+        except OTP.DoesNotExist:
+            return Response({"error": "Invalid or expired OTP."}, status=400)
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=400)
+
 
 
 class ResendOTPView(APIView):
@@ -260,31 +461,6 @@ class CategoryListView(generics.GenericAPIView):
 
 
 
-class LogoutView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        refresh_token = request.data.get("refresh")
-        logger.debug(f"Logout request received with refresh token: {refresh_token}")
-
-        if not refresh_token:
-            logger.warning("No refresh token received during logout.")
-            return Response({"error": "Refresh token is missing"}, status=400)
-
-        try:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            logger.info(f"User {request.user.email} logged out successfully.")
-            return Response({"detail": "Logout successful"}, status=205)
-
-        except TokenError as e:
-            # Token already blacklisted or malformed
-            logger.warning(f"Token already blacklisted or invalid: {str(e)}")
-            return Response({"detail": "Token already blacklisted"}, status=205)
-
-        except Exception as e:
-            logger.error(f"Unexpected error during logout: {str(e)}")
-            return Response({"error": "Something went wrong"}, status=400)
 
 
 

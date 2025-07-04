@@ -123,6 +123,7 @@ class MentorPublicProfileSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     email = serializers.EmailField(source='user.email')
     slots = serializers.SerializerMethodField()
+    profile_picture = serializers.ImageField(required=False)
 
     class Meta:
         model = UserProfile
@@ -240,32 +241,34 @@ from cloudinary.utils import cloudinary_url
 
 class FeedbackSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
-    audio = serializers.SerializerMethodField()
     video = serializers.SerializerMethodField()
+    audio = serializers.SerializerMethodField()
 
     def get_image(self, obj):
         if obj.image:
-            url, _ = cloudinary_url(obj.image.public_id)
+            url, _ = cloudinary_url(str(obj.image.public_id))
             return url
         return None
 
     def get_video(self, obj):
         if obj.video:
-            url, _ = cloudinary_url(obj.video.public_id, resource_type="video")
+            url, _ = cloudinary_url(str(obj.video), resource_type="video")
             return url
         return None
 
     def get_audio(self, obj):
         if obj.audio:
-            url, _ = cloudinary_url(obj.audio.public_id, resource_type="video")  # audio is stored as video
+            url, _ = cloudinary_url(str(obj.video), resource_type="video")
             return url
         return None
+    
 
     class Meta:
         model = Feedback
         fields = [
             'id', 'session', 'giver', 'receiver', 'message',
-            'video', 'audio', 'image', 'external_links', 'created_at'
+            'video', 'audio', 'image',
+            'external_links', 'created_at'
         ]
         read_only_fields = ['giver', 'receiver', 'created_at']
         extra_kwargs = {
@@ -281,14 +284,11 @@ class FeedbackSerializer(serializers.ModelSerializer):
 
 
 
+
+
 # ------------------------------
 # Payment Transaction Serializer
 # ------------------------------
-
-
-
-
-
 
 
 from rest_framework import serializers
