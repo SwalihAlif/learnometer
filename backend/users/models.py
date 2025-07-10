@@ -1,4 +1,9 @@
 from django.db import models
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from cloudinary.models import CloudinaryField
+import random
+from datetime import timedelta
+from django.utils import timezone
 
 # Create your models here.
 class Role(models.Model):
@@ -7,8 +12,6 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
-
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -32,6 +35,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True) # for stripe gateway
+    referral_code = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    referred_by = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='referrals')
+    is_premium = models.BooleanField(default=False)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 
@@ -41,10 +49,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
 
-from django.db import models
-from cloudinary.models import CloudinaryField
 from django.contrib.auth import get_user_model
-
 User = get_user_model()
 
 class UserProfile(models.Model):
@@ -56,7 +61,6 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
 
     preferred_categories = models.JSONField(blank=True, default=list)  # List of categories
     languages_known = models.JSONField(blank=True, default=list)       # List of languages
@@ -77,14 +81,8 @@ class UserProfile(models.Model):
 
 
 
-# models.py
-import random
-from datetime import timedelta
-from django.utils import timezone
-from django.db import models
-from django.contrib.auth import get_user_model
 
-User = get_user_model()
+
 
 class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

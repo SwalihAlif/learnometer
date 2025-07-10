@@ -56,6 +56,14 @@ class SessionBooking(models.Model):
     topic_focus = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True) # stripe
+    amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    platform_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    mentor_payout = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
+    captured_at = models.DateTimeField(blank=True, null=True)
+    is_payment_captured = models.BooleanField(default=False)
+
     class Meta:
         unique_together = ('mentor', 'date', 'start_time')
         ordering = ['-created_at']
@@ -67,29 +75,43 @@ class SessionBooking(models.Model):
 # Payment Transaction
 # ----------------------
 class PaymentTransaction(models.Model):
-    class PaymentGatewayChoices(models.TextChoices):
-        STRIPE = 'Stripe', 'Stripe'
-        RAZORPAY = 'Razorpay', 'Razorpay'
+    session_booking = models.OneToOneField(SessionBooking, on_delete=models.CASCADE, related_name='payment_transaction')
+    stripe_payment_intent_id = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    platform_fee = models.DecimalField(max_digits=8, decimal_places=2)
+    mentor_payout = models.DecimalField(max_digits=8, decimal_places=2)
+    status = models.CharField(max_length=30, choices=[
+        ('holding', 'Holding'),
+        ('released', 'Released'),
+        ('refunded', 'Refunded'),
+        ('failed', 'Failed')
+    ], default='holding')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    class TransactionStatus(models.TextChoices):
-        INITIATED = 'initiated', 'Initiated'
-        SUCCESS = 'success', 'Success'
-        FAILED = 'failed', 'Failed'
-        REFUNDED = 'refunded', 'Refunded'
+class StripeAccount(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='stripe_account')
+    stripe_account_id = models.CharField(max_length=255)
+    onboarding_complete = models.BooleanField(default=False)
+    account_type = models.CharField(max_length=20, choices=(
+        ("mentor", "Mentor"),
+        ("learner", "Learner"),
+        ("admin", "Admin"),
+    ))
 
-    booking = models.OneToOneField(SessionBooking, on_delete=models.CASCADE, related_name='payment')
-    amount = models.DecimalField(max_digits=6, decimal_places=2)
-    payment_gateway = models.CharField(max_length=20, choices=PaymentGatewayChoices.choices)
-    transaction_id = models.CharField(max_length=100)
-    status = models.CharField(max_length=20, choices=TransactionStatus.choices)
-    refund_reason = models.TextField(blank=True, null=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
+class Subscription(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='subscription')
+    stripe_subscription_id = models.CharField(max_length=255)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    active = models.BooleanField(default=True)
 
-    class Meta:
-        ordering = ['-timestamp']
-
-    def __str__(self):
-        return f"{self.booking} - {self.status}"
+class ReferralEarning(models.Model):
+    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referral_earnings')
+    referred_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='earned_by_referral')
+    amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_out = models.BooleanField(default=False)
 
 # ----------------------
 # Review
@@ -122,6 +144,7 @@ class Feedback(models.Model):
     video = CloudinaryField('video', blank=True, null=True)
     audio = CloudinaryField('video', blank=True, null=True)  # Cloudinary doesn't have 'audio' type, so use 'video'
     image = CloudinaryField('image', blank=True, null=True)
+    pdf = CloudinaryField('pdf', blank=True, null=True, resource_type='raw')
 
     external_links = models.TextField(blank=True, null=True, help_text="Comma-separated URLs")
     created_at = models.DateTimeField(auto_now_add=True)

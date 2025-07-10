@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from users.models import UserProfile
-from .models import MentorAvailability, SessionBooking, Review, Feedback
+from .models import MentorAvailability, SessionBooking, Review, Feedback, Subscription, StripeAccount
 from .serializers import (
     MentorPublicProfileSerializer,
     MentorAvailabilitySerializer,
@@ -73,17 +73,147 @@ class MentorAvailabilityViewSet(viewsets.ModelViewSet):
 
 
 # ----------------------------
+# create a stripe customer for payment
+# ----------------------------
+# mentorship/views.py
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.conf import settings
+from .models import SessionBooking, StripeAccount
+from .utils import create_stripe_customer, create_stripe_connect_account
+import stripe
+from django.contrib.auth import get_user_model
+import logging
+
+User = get_user_model()
+stripe.api_key = settings.STRIPE_SECRET_KEY
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def handle_mentor_session_booking(request):
+    user = request.user
+    data = request.data
+    logger.info(f"Booking attempt by {user.email} with data: {data}")
+
+    # Validate booking type
+    if data.get('type') != 'session':
+        return Response({'error': 'Invalid booking type.'}, status=400)
+
+    # Validate required fields
+    required_fields = ['mentor_id', 'date', 'start_time', 'end_time', 'amount']
+    if not all(field in data for field in required_fields):
+        return Response({'error': 'Missing required fields.'}, status=400)
+
+    mentor_id = data['mentor_id']
+    date = data['date']
+    start_time = data['start_time']
+    end_time = data['end_time']
+    amount = float(data['amount'])
+
+    # Fetch mentor user
+    try:
+        mentor = User.objects.get(id=mentor_id)
+        logger.info(f"Mentor found: {mentor.email}")
+    except User.DoesNotExist:
+        return Response({'error': 'Mentor not found.'}, status=404)
+
+    # Check for StripeAccount or create one
+    mentor_account = StripeAccount.objects.filter(user=mentor, account_type="mentor").first()
+    if not mentor_account:
+        logger.info(f"No StripeAccount found for mentor {mentor.email}. Creating now.")
+        mentor_account = create_stripe_connect_account(mentor, account_type="mentor")
+
+    # Check transfer capability
+    try:
+        account = stripe.Account.retrieve(mentor_account.stripe_account_id)
+    except stripe.error.StripeError as e:
+        logger.error(f"Failed to retrieve Stripe account: {str(e)}")
+        return Response({'error': 'Unable to verify mentor Stripe account.'}, status=400)
+
+    if account.capabilities.get("transfers") != "active":
+        logger.warning(f"Mentor {mentor.email} does not have active transfer capability.")
+        onboarding_link = stripe.AccountLink.create(
+            account=mentor_account.stripe_account_id,
+            refresh_url="http://localhost:8000/stripe/onboarding/refresh/",
+            return_url="http://localhost:8000/dashboard/",
+            type="account_onboarding"
+        )
+        return Response({
+            'error': 'Mentor account is not ready to receive payouts.',
+            'onboarding_url': onboarding_link.url
+        }, status=400)
+
+    # Create Stripe customer if not exists
+    stripe_customer_id = create_stripe_customer(user)
+
+    # Calculate fees
+    platform_fee = round(amount * 0.2, 2)
+    mentor_payout = round(amount - platform_fee, 2)
+
+    # Create Stripe PaymentIntent
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount=int(amount * 100),
+            currency='inr',
+            customer=stripe_customer_id,
+            capture_method='manual',
+            payment_method_types=['card'],
+            transfer_data={
+                'destination': mentor_account.stripe_account_id,
+            },
+            application_fee_amount=int(platform_fee * 100),
+            metadata={
+                'learner_id': user.id,
+                'mentor_id': mentor.id,
+                'purpose': 'mentor_session',
+            }
+        )
+        logger.info(f"Stripe PaymentIntent created: {intent.id}")
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error during PaymentIntent creation: {str(e)}")
+        return Response({'error': str(e)}, status=400)
+
+    # Create session booking in DB
+    booking = SessionBooking.objects.create(
+        learner=user,
+        mentor=mentor,
+        date=date,
+        start_time=start_time,
+        end_time=end_time,
+        amount=amount,
+        platform_fee=platform_fee,
+        mentor_payout=mentor_payout,
+        status=SessionBooking.Status.PENDING,
+        payment_status=SessionBooking.PaymentStatus.HOLDING,
+        stripe_payment_intent_id=intent.id,
+    )
+    logger.info(f"Session booking created successfully: ID {booking.id}")
+
+    return Response({
+        'clientSecret': intent.client_secret,
+        'paymentIntentId': intent.id,
+        'bookingId': booking.id,
+    })
+
+# ----------------------------
 # Session Booking (Create API)
 # ----------------------------
+# mentorship/viewsets.py
+
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
 from django.utils import timezone
+from django.db.models import Q
 from datetime import datetime, timedelta
 from .models import SessionBooking
 from .serializers import SessionBookingSerializer
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SessionBookingViewSet(viewsets.ModelViewSet):
     queryset = SessionBooking.objects.all()
@@ -95,18 +225,15 @@ class SessionBookingViewSet(viewsets.ModelViewSet):
         role_obj = getattr(user, 'role', None)
         role = role_obj.name if role_obj else None
 
-        logger.info(f"get_queryset called by user={user.email}, role={role}")
-
         if role == 'Mentor':
-            logger.info(f"Returning mentor sessions for user={user.email}")
             return SessionBooking.objects.filter(mentor=user)
-
         elif role == 'Learner':
-            logger.info(f"Returning learner sessions for user={user.email}")
             return SessionBooking.objects.filter(learner=user)
 
-        logger.warning(f"Unknown or missing role for user={user.email}. Returning empty queryset.")
         return SessionBooking.objects.none()
+
+    def create(self, request, *args, **kwargs):
+        return Response({'error': 'Use /api/book-session/ for Stripe bookings.'}, status=405)
 
     def perform_create(self, serializer):
         serializer.save(learner=self.request.user)
@@ -135,7 +262,6 @@ class SessionBookingViewSet(viewsets.ModelViewSet):
         if request.user != session.learner:
             return Response({"error": "Unauthorized."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Check if more than 12 hours remain
         session_datetime = datetime.combine(session.date, session.start_time)
         if timezone.now() + timedelta(hours=12) > timezone.make_aware(session_datetime):
             return Response({"error": "Cannot cancel less than 12 hours before session."},
@@ -164,7 +290,7 @@ class SessionBookingViewSet(viewsets.ModelViewSet):
         now = timezone.now()
         session_datetime = datetime.combine(session.date, session.start_time)
         session_start = timezone.make_aware(session_datetime)
-        session_end = session_start + timedelta(minutes=30)  # assuming 30 min session
+        session_end = session_start + timedelta(minutes=30)
 
         if session.status != SessionBooking.Status.CONFIRMED:
             return Response({"can_join": False, "reason": "Session is not confirmed."})
@@ -173,6 +299,42 @@ class SessionBookingViewSet(viewsets.ModelViewSet):
             return Response({"can_join": True, "join_link": session.meeting_link})
 
         return Response({"can_join": False, "reason": "Not within joinable time."})
+
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])  # session complete and capture the mentor fee
+    def complete_and_capture(self, request, pk=None):
+        session = self.get_object()
+
+        if request.user.role.name.lower() != 'admin':
+            return Response({"error": "Only admin can complete and capture sessions."}, status=403)
+
+        if session.status != SessionBooking.Status.CONFIRMED:
+            return Response({"error": "Session must be in CONFIRMED state to complete."}, status=400)
+
+        if session.payment_status != SessionBooking.PaymentStatus.HOLDING:
+            return Response({"error": "Payment is not in holding state."}, status=400)
+
+        try:
+            # Convert to paisa
+            amount_in_paisa = int(session.amount * 100)
+            mentor_share = int(session.mentor_payout * 100)
+
+            # Capture payment
+            stripe.PaymentIntent.capture(
+                session.stripe_payment_intent_id,
+                amount_to_capture=mentor_share
+            )
+
+            session.status = SessionBooking.Status.COMPLETED
+            session.payment_status = SessionBooking.PaymentStatus.RELEASED
+            session.captured_at = timezone.now()
+            session.save()
+
+            return Response({"message": "✅ Session marked as completed and payment captured."})
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe capture error: {str(e)}")
+            return Response({"error": str(e)}, status=400)
+
 
 # ----------------------------
 # Session List for Learner/Mentor
@@ -192,6 +354,86 @@ class MySessionsAPIView(APIView):
         serializer = SessionBookingSerializer(sessions, many=True)
         return Response(serializer.data)
 
+# ----------------------------
+# Create a Stripe Connect account for payout
+# ----------------------------
+from rest_framework.views import APIView
+
+class BeginPayoutOnboarding(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        account_type = request.data.get("account_type", "mentor")  # or "learner"
+
+        # Only create if not exists
+        stripe_account, created = StripeAccount.objects.get_or_create(
+            user=user,
+            defaults={'account_type': account_type}
+        )
+        if not stripe_account.stripe_account_id:
+            acct = create_stripe_connect_account(user, account_type)
+            stripe_account.stripe_account_id = acct.stripe_account_id
+            stripe_account.save()
+
+        # Generate onboarding link
+        account_link = stripe.AccountLink.create(
+            account=stripe_account.stripe_account_id,
+            refresh_url="http://localhost:8000/stripe/onboarding/refresh/",
+            return_url="http://localhost:8000/dashboard/",
+            type="account_onboarding",
+        )
+
+        return Response({"url": account_link.url})
+
+
+# ----------------------------
+# Stripe webhook endpoint
+# ----------------------------
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+import json
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+    event = None
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+        )
+    except Exception as e:
+        return HttpResponse(status=400)
+
+    # PaymentIntent succeeded (session booking payment completed)
+    if event['type'] == 'payment_intent.succeeded':
+        intent = event['data']['object']
+        pi_id = intent['id']
+        try:
+            booking = SessionBooking.objects.get(stripe_payment_intent_id=pi_id)
+            booking.status = 'confirmed'
+            booking.save()
+        except SessionBooking.DoesNotExist:
+            pass
+
+    # Checkout session completed (subscription purchased)
+    elif event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        checkout_id = session['id']
+        subscription_id = session.get('subscription')
+        try:
+            sub = Subscription.objects.get(stripe_checkout_session_id=checkout_id)
+            sub.stripe_subscription_id = subscription_id
+            sub.active = True
+            sub.start_date = timezone.now()
+            sub.save()
+        except Subscription.DoesNotExist:
+            pass
+
+    # Add more event handlers as needed
+
+    return HttpResponse(status=200)
 # ----------------------------
 # Learner creating review after session
 # ----------------------------
@@ -285,26 +527,32 @@ class FeedbackUploadAPIView(APIView):
 # ----------------------------
 # Mentor Feedback details
 # ----------------------------
-class FeedbackDetailAPIView(APIView):
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from .models import Feedback, SessionBooking
+from .serializers import FeedbackSerializer
+from django.shortcuts import get_object_or_404
+
+class FeedbackBySessionAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, session_id):
-        logger.debug(f"Feedback GET request received for session ID: {session_id} by user ID: {request.user.id}")
-
-        try:
-            session = SessionBooking.objects.get(id=session_id)
-            feedback = session.feedback  # May raise RelatedObjectDoesNotExist
-        except (SessionBooking.DoesNotExist, ObjectDoesNotExist):
-            logger.warning(f"Feedback not found or session does not exist for session ID: {session_id}")
-            return Response({"detail": "Feedback not found."}, status=404)
-
-        if session.learner != request.user:
-            logger.warning(f"Unauthorized access attempt: User ID {request.user.id} is not the learner of session {session_id}")
-            return Response({"detail": "Not authorized."}, status=403)
-
-        logger.info(f"Feedback retrieved for session ID: {session_id} by learner ID: {request.user.id}")
+        session = get_object_or_404(SessionBooking, id=session_id)
+        feedback = getattr(session, 'feedback', None)
+        if not feedback:
+            return Response({"detail": "No feedback for this session."}, status=status.HTTP_404_NOT_FOUND)
         serializer = FeedbackSerializer(feedback)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class FeedbackRetrieveAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, feedback_id):
+        feedback = get_object_or_404(Feedback, id=feedback_id)
+        serializer = FeedbackSerializer(feedback)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 #cheking vie............................
 
