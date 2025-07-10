@@ -29,6 +29,7 @@ import MentorProfile from './pages/mentor/MentorProfile';
 import ManageAvailability from './pages/mentor/ManageAvailability';
 import MentorMySessions from './pages/mentor/MentorMySessions';
 import CheckingUpload from './pages/mentor/CheckingUpload';
+import CheckingList from './pages/mentor/CheckingGet';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -83,6 +84,7 @@ export default function App() {
               <Route path="manage-availability" element={<ManageAvailability />} />
               <Route path="my-sessions" element={<MentorMySessions />} />
               <Route path="upload" element={<CheckingUpload />} />
+              <Route path="check" element={<CheckingList />} />
             </Route>
 
             {/* Admin Layout */}

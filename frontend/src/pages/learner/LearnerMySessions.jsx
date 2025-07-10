@@ -65,7 +65,8 @@ const LearnerMySessions = () => {
 
   const handleGetFeedback = async (sessionId) => {
     try {
-      const res = await axiosInstance.get(`mentorship/sessions/${sessionId}/feedback/`);
+      const res = await axiosInstance.get(`mentorship/feedbacks/session/${sessionId}/`);
+      
       console.log("Received feedback data:", res.data); 
       setFeedbackData(res.data);
       setShowFeedbackModal(true);
@@ -156,12 +157,12 @@ const LearnerMySessions = () => {
                       </div>
                     )}
 
-                    {feedbackData.image && (
+                    {feedbackData.image_url && (
                       <div className="mb-6">
                         <h4 className="font-semibold text-indigo-900 mb-2">Image:</h4>
                         <div className="flex justify-center">
                           <img
-                            src={feedbackData.image}
+                            src={feedbackData.image_url}
                             alt="Feedback Image"
                             className="max-w-[70%] max-h-64 object-contain rounded-lg border border-gray-300 shadow-md"
                           />
@@ -170,7 +171,7 @@ const LearnerMySessions = () => {
                     )}
 
 
-                    {feedbackData.video && (
+                    {feedbackData.video_url && (
                       <div className="mb-6">
                         <h4 className="font-semibold text-indigo-900 mb-2">Video:</h4>
                         <div className="flex justify-center">
@@ -178,7 +179,7 @@ const LearnerMySessions = () => {
                             controls
                             className="max-w-[70%] max-h-56 object-contain rounded-lg border border-gray-300 shadow-md"
                           >
-                            <source src={feedbackData.video} type="video/mp4" />
+                            <source src={feedbackData.video_url} type="video/mp4" />
                             Your browser does not support the video tag.
                           </video>
                         </div>
@@ -186,12 +187,12 @@ const LearnerMySessions = () => {
                     )}
 
 
-                    {feedbackData.audio && (
+                    {feedbackData.audio_url && (
                       <div className="mb-6">
                         <h4 className="font-semibold text-indigo-900 mb-2">Audio:</h4>
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                           <audio controls className="w-full">
-                            <source src={feedbackData.audio} type="audio/mp4" />
+                            <source src={feedbackData.audio_url} type="audio/mp4" />
                             Your browser does not support the audio tag.
                           </audio>
                         </div>

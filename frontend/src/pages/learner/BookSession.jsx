@@ -5,6 +5,9 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import toast from "react-hot-toast";
 import { isBefore, parseISO } from "date-fns";
+//stripe import
+import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+
 
 const BookMentorSession = () => {
   const { mentorId } = useParams();
@@ -14,6 +17,9 @@ const BookMentorSession = () => {
   const [slots, setSlots] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const SLOTS_PER_PAGE = 5;
+
+  const stripe = useStripe();
+  const elements = useElements();
 
   const fetchMentor = async () => {
     try {
@@ -65,30 +71,94 @@ const BookMentorSession = () => {
     }
   }, [mentorId]);
 
-  const handleBook = async (slot) => {
-    const now = new Date();
-    const slotStart = new Date(`${slot.date}T${slot.start_time}`);
 
-    if (isBefore(slotStart, now)) {
-      toast.error("This slot is in the past.");
-      return;
+
+
+
+const handleBook = async (slot) => {
+  if (!stripe || !elements) {
+    toast.error("❌ Stripe is not ready");
+    return;
+  }
+
+  const now = new Date();
+  const slotStart = new Date(`${slot.date}T${slot.start_time}`);
+  if (isBefore(slotStart, now)) {
+    toast.error("⏰ This slot is in the past.");
+    return;
+  }
+
+  try {
+    const payload = {
+      type: "session",
+      mentor_id: mentor.user_id,
+      date: slot.date,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      amount: slot.session_price || 500.0,
+    };
+
+    console.log("Slot amount:", slot.session_price);
+
+    // 🧾 Step 1: Create PaymentIntent from backend
+    const res = await axiosInstance.post("mentorship/book-session/", payload);
+    const { clientSecret, bookingId } = res.data;
+    console.log("✅ PaymentIntent created:", res.data);
+
+    // 💳 Step 2: Confirm card payment
+    const result = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: {
+        card: elements.getElement(CardElement),
+      },
+    });
+
+    console.log("💬 Stripe confirm result:", result);
+
+    // 🎯 Step 3: Handle payment outcome
+    if (result.error) {
+      toast.error(result.error.message || "❌ Payment failed");
+    } else {
+      const status = result.paymentIntent?.status;
+
+      switch (status) {
+        case "succeeded":
+          toast.success("🎉 Payment successful! Session booked.");
+          fetchSlotsForDate(selectedDate);
+          break;
+
+        case "requires_capture":
+          toast.success("✅ Payment authorized. Capture required.");
+          break;
+
+        case "requires_action":
+          toast("⚠️ Additional authentication required.");
+          break;
+
+        default:
+          toast.error(`⚠️ Unexpected status: ${status}`);
+      }
     }
 
-    try {
-      const payload = {
-        mentor: mentor.user_id,
-        date: slot.date,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-      };
-      const res = await axiosInstance.post("mentorship/session-bookings/", payload);
-      toast.success("Session booked successfully!");
-      fetchSlotsForDate(selectedDate);
-    } catch (err) {
-      toast.error("Booking failed.");
-      console.error("Booking error", err);
+  } catch (err) {
+    if (err.response?.data) {
+      const { error, onboarding_url } = err.response.data;
+      console.error("❌ Booking failed:", err.response.data);
+
+      toast.error(error || "Booking or payment failed.");
+
+      if (onboarding_url) {
+        toast("⚠️ Mentor not onboarded to Stripe. Redirecting...");
+        window.open(onboarding_url, "_blank");
+      }
+    } else {
+      toast.error("❌ Booking or payment failed due to server issue.");
+      console.error("❗ Unknown Stripe booking error", err);
     }
-  };
+  }
+};
+
+
+
 
   const availableDates = availability.map((slot) => slot.date);
   const tileClassName = ({ date }) => {
@@ -311,9 +381,17 @@ const BookMentorSession = () => {
                           </div>
                         </div>
                       ))}
-                    </div>
+                      </div>
 
-                    {/* Pagination */}
+
+                      {/* Stripe card */}
+                      <div className="mt-6 border rounded-md p-4">
+                        <h3 className="text-lg font-bold mb-2">Enter your card details</h3>
+                        <CardElement className="p-2 border rounded-md" />
+                      </div>
+
+
+                      {/* Pagination */}
                     {totalPages > 1 && (
                       <div className="flex justify-center mt-8">
                         <div className="flex gap-2">
