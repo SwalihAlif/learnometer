@@ -22,6 +22,7 @@ import Quiz from './pages/learner/Quiz';
 import MentorList from './pages/learner/MentorList';
 import BookSession from './pages/learner/BookSession';
 import LearnerMySessions from './pages/learner/LearnerMySessions';
+import LearnerChat from './pages/learner/LearnerChat';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
@@ -30,6 +31,8 @@ import ManageAvailability from './pages/mentor/ManageAvailability';
 import MentorMySessions from './pages/mentor/MentorMySessions';
 import CheckingUpload from './pages/mentor/CheckingUpload';
 import CheckingList from './pages/mentor/CheckingGet';
+import MentorChat from './pages/mentor/MentorChat';
+import MentorChatList from './pages/mentor/MentorChatList';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -75,6 +78,8 @@ export default function App() {
               <Route path="all-mentors" element={<MentorList />} />
               <Route path="book-session/:mentorId" element={<BookSession />} />
               <Route path="my-sessions" element={<LearnerMySessions />} />
+              {/* Updated chat route for learner to expect a mentorId */}
+              <Route path="chat/:mentorId" element={<LearnerChat />} />
             </Route>
 
             {/* Mentor Layout */}
@@ -85,6 +90,8 @@ export default function App() {
               <Route path="my-sessions" element={<MentorMySessions />} />
               <Route path="upload" element={<CheckingUpload />} />
               <Route path="check" element={<CheckingList />} />
+              <Route path="chat-list" element={<MentorChatList />} />
+              <Route path="chat/:learnerId" element={<MentorChat />} />
             </Route>
 
             {/* Admin Layout */}

@@ -4,6 +4,7 @@ import {
   MessageSquare,
   Star,
   Video,
+  MessageCircle,
   DollarSign,
   Clock
 } from 'lucide-react';
@@ -17,7 +18,8 @@ const MentorSidebar = () => {
     { name: 'Manage Availability', icon: Clock, path: '/mentor/manage-availability' },
     { name: 'Feedback', icon: MessageSquare, path: '/mentor/feedback' },
     { name: 'Reviews', icon: Star, path: '/mentor/reviews' },
-    { name: 'Chat & Video', icon: Video, path: '/mentor/chat' },
+    // { name: 'Chat', icon: Video, path: '/mentor/chat' },
+    { name: 'Messages', icon: MessageCircle, path: 'chat-list' },
     { name: 'Earnings', icon: DollarSign, path: '/mentor/earnings' },
   ];
 

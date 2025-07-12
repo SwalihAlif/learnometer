@@ -3,6 +3,7 @@ import { fetchMentors } from "../../api/mentorshipAPI";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { isBefore } from "date-fns";
+import { MessageCircle } from 'lucide-react'; // Import the MessageCircle icon
 
 const ITEMS_PER_PAGE = 10;
 
@@ -41,6 +42,11 @@ const MentorList = () => {
 
   const totalPages = Math.ceil(mentors.length / ITEMS_PER_PAGE);
   const paginatedMentors = mentors.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  // Handler for the Message button
+  const handleMessageClick = (mentorId) => {
+    navigate(`/learner/chat/${mentorId}`);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -83,7 +89,7 @@ const MentorList = () => {
                     <div className="flex flex-col items-center text-center">
                       <div className="relative mb-4">
                         <img
-                          src={mentor.profile_picture || "https://via.placeholder.com/100"}
+                          src={mentor.profile_picture || "https://placehold.co/100x100/E0E7FF/4338CA?text=Mentor"}
                           alt={mentor.full_name || "Mentor"}
                           className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300"
                         />
@@ -183,13 +189,23 @@ const MentorList = () => {
                       )}
                     </div>
 
-                    {/* Book Session Button */}
-                    <button
-                      className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-200 active:scale-95"
-                      onClick={() => navigate(`/learner/book-session/${mentor.user_id}`)}
-                    >
-                      Book Session
-                    </button>
+                    {/* Action Buttons: Book Session and Message */}
+                    <div className="flex space-x-3">
+                      <button
+                        className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-200 active:scale-95"
+                        onClick={() => navigate(`/learner/book-session/${mentor.user_id}`)}
+                      >
+                        Book Session
+                      </button>
+                      <button
+                        className="flex-shrink-0 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-gray-200 active:scale-95 flex items-center justify-center"
+                        onClick={() => handleMessageClick(mentor.user_id)}
+                        title={`Message ${mentor.full_name || 'this mentor'}`}
+                      >
+                        <MessageCircle className="w-5 h-5" />
+                        <span className="ml-2 hidden sm:inline">Message</span> {/* Show text on larger screens */}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

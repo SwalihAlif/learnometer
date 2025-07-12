@@ -24,7 +24,12 @@ const LearnerSidebar = () => {
     { name: 'Favorites', icon: Heart, path: 'favorites' },
     { name: 'Progress', icon: Target, path: 'progress' },
     { name: 'Premium', icon: Crown, path: 'premium' },
-    { name: 'Messages', icon: MessageCircle, path: 'messages' },
+    // --- IMPORTANT CHANGE HERE ---
+    // Point the 'Messages' path to your chat route.
+    // For now, we'll use a generic room name like 'general_chat_room'.
+    // In intermediate steps, this path will likely become dynamic (e.g., 'chat/mentor_id').
+    { name: 'Messages', icon: MessageCircle, path: 'chat/general_chat_room' },
+    // --- END IMPORTANT CHANGE ---
     { name: 'Downloads', icon: Download, path: 'downloads' }
   ];
 
