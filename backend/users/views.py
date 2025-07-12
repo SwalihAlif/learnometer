@@ -24,32 +24,45 @@ from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.utils import timezone
 
 
-
-logger = logging.getLogger("users")
-
-
-
+import logging
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.utils import timezone
 from datetime import timedelta
 from django.conf import settings
 from rest_framework.response import Response
+from django.contrib.auth import login # Import Django's login function
+
+logger = logging.getLogger("users") # Use your existing logger setup
 
 class CookieTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        
+        # Call the parent's post method to handle token generation and validation
+        # The serializer will have the authenticated user available after validation
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Get the authenticated user from the serializer's validated data
+        user = serializer.user # SimpleJWT's serializer makes the user available here
+
+        # --- CRITICAL FIX: Log the user into a Django session ---
+        # This will set the 'sessionid' cookie which AuthMiddlewareStack expects
+        login(request, user)
+        logger.info(f"User {user.email} successfully logged in and session established.")
+        # --- END CRITICAL FIX ---
+
+        response = super().post(request, *args, **kwargs) # This generates the tokens and data
+
         if response.status_code == 200:
             access_token = response.data.get("access")
             refresh_token = response.data.get("refresh")
-            access_expiry = timezone.now() + timedelta(minutes=30)
-            refresh_expiry = timezone.now() + timedelta(days=1)
+            # access_expiry = timezone.now() + timedelta(minutes=30) # No longer needed, max_age handles it
+            # refresh_expiry = timezone.now() + timedelta(days=1) # No longer needed, max_age handles it
 
-            # Remove tokens from response body
+            # Remove tokens from response body (as you already do)
             response.data.pop("access", None)
             response.data.pop("refresh", None)
 
-            # Set HttpOnly cookies
+            # Set HttpOnly cookies (as you already do)
             response.set_cookie(
                 key="access_token",
                 value=access_token,
@@ -57,8 +70,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 secure=not settings.DEBUG,
                 samesite="Lax",
                 path="/",
-                max_age=1800,
-                
+                max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds(), # Use SimpleJWT's lifetime
             )
             response.set_cookie(
                 key="refresh_token",
@@ -67,17 +79,12 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 secure=not settings.DEBUG,
                 samesite="Lax",
                 path="/",
-                max_age=86400,
-                
+                max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(), # Use SimpleJWT's lifetime
             )
 
         return response
-    
 
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
-
+# Your CookieTokenRefreshView remains the same, as it doesn't typically create sessions
 class CookieTokenRefreshView(APIView):
     def post(self, request):
         refresh_token = request.COOKIES.get("refresh_token")
@@ -88,7 +95,6 @@ class CookieTokenRefreshView(APIView):
             refresh = RefreshToken(refresh_token)
             new_access = refresh.access_token
 
-            # If refresh rotation is enabled:
             if settings.SIMPLE_JWT.get("ROTATE_REFRESH_TOKENS", False):
                 new_refresh = str(refresh)
                 refresh.set_jti()
@@ -121,12 +127,15 @@ class CookieTokenRefreshView(APIView):
         except (TokenError, InvalidToken):
             return Response({"detail": "Invalid refresh token."}, status=401)
 
+
 from rest_framework.views import APIView
+from django.contrib.auth import logout
 
 class LogoutView(APIView):
     def post(self, request):
         response = Response({"message": "Logged out successfully"})
 
+        logout(request)
         response.delete_cookie("access_token", path="/")
         response.delete_cookie("refresh_token", path="/")
 
@@ -331,18 +340,23 @@ class OTPVerifyView(APIView):
             if otp.is_expired():
                 return Response({"error": "OTP has expired. Please request a new one."}, status=400)
 
-            # ✅ Mark OTP + user as verified
+            # Mark OTP + user as verified
             otp.is_verified = True
             otp.save()
             user.is_active = True
             user.save()
 
-            # ✅ Issue tokens
+            # It creates the 'sessionid' cookie
+            # that AuthMiddlewareStack relies on for WebSocket authentication.
+            login(request, user)
+            logger.info(f"User {user.email} successfully verified OTP and logged into session.")
+
+            # Issue tokens
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
             refresh_token = str(refresh)
 
-            # ✅ Response with role for frontend redirect
+            # Response with role for frontend redirect
             response = Response({
                 "message": "OTP verified successfully.",
                 "role": user.role.name if user.role else None,
