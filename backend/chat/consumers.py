@@ -13,6 +13,42 @@ from django.db import transaction
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+class SignalingConsumer(WebsocketConsumer):
+    def connect(self):
+        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        self.room_group_name = f"webrtc_{self.room_name}"
+        async_to_sync(self.channel_layer.group_add)(
+            self.room_group_name,
+            self.channel_name
+        )
+        self.accept()
+
+    def disconnect(self, close_code):
+        async_to_sync(self.channel_layer.group_discard)(
+            self.room_group_name,
+            self.channel_name
+        )
+
+    def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+            async_to_sync(self.channel_layer.group_send)(
+                self.room_group_name,
+                {
+                    'type': 'signal_message',
+                    'message': data
+                }
+            )
+        except Exception as e:
+            self.send(text_data=json.dumps({'error': 'Invalid signal data'}))
+
+    def signal_message(self, event):
+        self.send(text_data=json.dumps(event['message']))
+
+
+
+
+
 class ChatConsumer(WebsocketConsumer):
     # Helper to get recipient user (now a method)
     @database_sync_to_async

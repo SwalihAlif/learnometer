@@ -9,4 +9,8 @@ websocket_urlpatterns = [
         r'ws/chat/(?P<room_name>\w+)/$',
         lambda scope, receive, send: __import__('chat.consumers', fromlist=['']).ChatConsumer.as_asgi()(scope, receive, send)
     ),
+    re_path(
+        r'ws/signaling/(?P<room_name>\w+)/$',
+        lambda scope, receive, send: __import__('chat.consumers', fromlist=['']).SignalingConsumer.as_asgi()(scope, receive, send)
+    ),
 ]

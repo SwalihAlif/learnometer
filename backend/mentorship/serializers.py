@@ -154,6 +154,7 @@ class MentorPublicProfileSerializer(serializers.ModelSerializer):
 
 from rest_framework import serializers
 from datetime import date as date_cls
+from datetime import datetime
 from .models import SessionBooking
 import logging
 
@@ -171,8 +172,10 @@ class SessionBookingSerializer(serializers.ModelSerializer):
     platform_fee = serializers.DecimalField(max_digits=8, decimal_places=2, read_only=True)
     mentor_payout = serializers.DecimalField(max_digits=8, decimal_places=2, read_only=True)
     stripe_payment_intent_id = serializers.CharField(read_only=True)
-
     is_completed_and_paid = serializers.SerializerMethodField()
+
+    # for time count down
+    meeting_datetime = serializers.SerializerMethodField()
 
     class Meta:
         model = SessionBooking
@@ -186,6 +189,7 @@ class SessionBookingSerializer(serializers.ModelSerializer):
             'amount', 'platform_fee', 'mentor_payout', 'stripe_payment_intent_id',
             'captured_at', 'is_payment_captured', 
             'is_completed_and_paid', 
+            'meeting_datetime',
         ]
         read_only_fields = [
             'id', 'learner', 'learner_name', 'learner_email',
@@ -236,6 +240,10 @@ class SessionBookingSerializer(serializers.ModelSerializer):
 
     def get_is_completed_and_paid(self, obj):
         return obj.status == "completed" and obj.payment_status == "released"
+    
+    def get_meeting_datetime(self, obj):
+        dt = datetime.combine(obj.date, obj.start_time)
+        return dt.isoformat()
 
 
 
