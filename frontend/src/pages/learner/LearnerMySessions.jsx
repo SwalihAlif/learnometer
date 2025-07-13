@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../axios";
+import { useAuth } from "../../contexts/AuthContext"
+import SessionCountdown from "../../components/countdown/SessionCountdown";
 
 const LearnerMySessions = () => {
+  const { isMentor, isLearner } = useAuth();
   const [sessions, setSessions] = useState([]);
 
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -34,6 +37,7 @@ const LearnerMySessions = () => {
   useEffect(() => {
     fetchSessions();
   }, []);
+
 
   const handleGiveReview = (sessionId) => {
     setSelectedSessionId(sessionId);
@@ -303,7 +307,7 @@ const LearnerMySessions = () => {
                           </div>
                         )}
 
-                        {s.status === "confirmed" && (
+                        {/* {s.status === "confirmed" && (
                           <a
                             href={s.meeting_link}
                             target="_blank"
@@ -315,7 +319,7 @@ const LearnerMySessions = () => {
                             </svg>
                             Join Meeting
                           </a>
-                        )}
+                        )} */}
 
                         {s.status === "pending" && (
                           <button
@@ -324,6 +328,13 @@ const LearnerMySessions = () => {
                           >
                             Cancel Session
                           </button>
+                        )}
+                        {s.status === "confirmed" && (
+                          <SessionCountdown
+                            meetingTime={s.meeting_datetime}
+                          sessionId={s.id}
+                          basePath={isMentor ? "/mentor" : isLearner ? "/learner" : ""}
+                          />
                         )}
                       </div>
                     </div>

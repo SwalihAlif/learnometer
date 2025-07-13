@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../axios";
+import { useAuth } from "../../contexts/AuthContext"
+import SessionCountdown from "../../components/countdown/SessionCountdown";
 
 const MentorMySessions = () => {
+  const { isMentor, isLearner } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
 
@@ -49,6 +52,8 @@ const MentorMySessions = () => {
   useEffect(() => {
     fetchSessions();
   }, []);
+
+
 
   const handleGiveFeedback = (sessionId) => {
     setSelectedSessionId(sessionId);
@@ -365,18 +370,12 @@ const MentorMySessions = () => {
                         </>
                       )}
 
-                      {s.status === "confirmed" && s.meeting_link && (
-                        <a
-                          href={s.meeting_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg flex items-center justify-center"
-                        >
-                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                          </svg>
-                          Start Meeting
-                        </a>
+                      {s.status === "confirmed" && (
+                        <SessionCountdown
+                          meetingTime={s.meeting_datetime}
+                          sessionId={s.id}
+                          basePath={isMentor ? "/mentor" : isLearner ? "/learner" : ""}
+                        />
                       )}
                     </div>
                   </div>

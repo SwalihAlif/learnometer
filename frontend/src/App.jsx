@@ -23,6 +23,7 @@ import MentorList from './pages/learner/MentorList';
 import BookSession from './pages/learner/BookSession';
 import LearnerMySessions from './pages/learner/LearnerMySessions';
 import LearnerChat from './pages/learner/LearnerChat';
+import LearnerVideoPage from './pages/learner/LearnerVideoPage';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
@@ -33,6 +34,7 @@ import CheckingUpload from './pages/mentor/CheckingUpload';
 import CheckingList from './pages/mentor/CheckingGet';
 import MentorChat from './pages/mentor/MentorChat';
 import MentorChatList from './pages/mentor/MentorChatList';
+import MentorVideoPage from './pages/mentor/MentorVideoPage';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -80,6 +82,7 @@ export default function App() {
               <Route path="my-sessions" element={<LearnerMySessions />} />
               {/* Updated chat route for learner to expect a mentorId */}
               <Route path="chat/:mentorId" element={<LearnerChat />} />
+              <Route path="meet/:sessionId" element={<LearnerVideoPage />} />
             </Route>
 
             {/* Mentor Layout */}
@@ -92,6 +95,7 @@ export default function App() {
               <Route path="check" element={<CheckingList />} />
               <Route path="chat-list" element={<MentorChatList />} />
               <Route path="chat/:learnerId" element={<MentorChat />} />
+              <Route path="meet/:sessionId" element={<MentorVideoPage />} />
             </Route>
 
             {/* Admin Layout */}
