@@ -108,19 +108,6 @@ class StripeAccount(models.Model):
     def __str__(self):
         return f"{self.user.email} - {self.account_type} - {self.stripe_account_id}"
 
-class Subscription(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='subscription')
-    stripe_subscription_id = models.CharField(max_length=255)
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField()
-    active = models.BooleanField(default=True)
-
-class ReferralEarning(models.Model):
-    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referral_earnings')
-    referred_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='earned_by_referral')
-    amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    paid_out = models.BooleanField(default=False)
 
 class MentorPayout(models.Model):
     mentor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mentor_payouts')

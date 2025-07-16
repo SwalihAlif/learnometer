@@ -133,7 +133,15 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 
 # -------------------------- test balance for payouts -----------------------------------------
-from rest_framework import serializers
 
 class AddTestBalanceSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1, help_text="Amount in INR")
+
+# -------------------------- Mentor notification -----------------------------------------
+
+from .models import AdminNotification
+
+class AdminNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminNotification
+        fields = ['id', 'message', 'created_at', 'is_read']

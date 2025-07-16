@@ -28,7 +28,11 @@ SECRET_KEY = 'django-insecure-qfn(lo)@oq%(totm+fz)oo(q71k$_4=^1ix0a7@+q=wgc!-=r2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '45e7de772435.ngrok-free.app',
+]
 
 
 # Application definition
@@ -251,9 +255,12 @@ CSRF_COOKIE_SECURE = False
 
 
 # Stripe
+from decimal import Decimal
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY = config("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET")
+STRIPE_LEARNER_PRIMIUM_WEBHOOK_SECRET = config("STRIPE_LEARNER_PRIMIUM_WEBHOOK_SECRET")
+PREMIUM_PRICE = Decimal("1000.00") 
 
 # added for success and cancel page of the learner subscription
 FRONTEND_URL = "http://localhost:5173"

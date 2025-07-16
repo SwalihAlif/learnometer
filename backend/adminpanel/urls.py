@@ -10,7 +10,9 @@ from .views import (
     FeedbackDetailView,
     ReviewDetailView,
     AdminDashboardStatsAPIView,
-    AdminAddTestBalanceView
+    AdminAddTestBalanceView, 
+    AdminNotificationsListView, 
+    AdminNotificationMarkReadView,
 
 )
 
@@ -29,6 +31,9 @@ urlpatterns = [
     path('dashboard-metrics/', AdminDashboardStatsAPIView.as_view(), name='admin-dashboard-metrics'),
 
     path("add-test-balance/", AdminAddTestBalanceView.as_view(), name="admin-add-test-balance"),
+
+    path("notifications/", AdminNotificationsListView.as_view()),
+    path("notifications/mark-read/", AdminNotificationMarkReadView.as_view()),
 
 
 

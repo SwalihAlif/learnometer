@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 import stripe.error
 from users.models import UserProfile
-from .models import MentorAvailability, SessionBooking, Review, Feedback, Subscription, StripeAccount
+from .models import MentorAvailability, SessionBooking, Review, Feedback, StripeAccount
 from .serializers import (
     MentorPublicProfileSerializer,
     MentorAvailabilitySerializer,
@@ -119,7 +119,7 @@ def handle_mentor_session_booking(request):
     except User.DoesNotExist:
         return Response({'error': 'Mentor not found.'}, status=404)
 
-    # ✅ UPDATED: Automatically create StripeAccount if missing
+    # UPDATED: Automatically create StripeAccount if missing
     mentor_account, created = StripeAccount.objects.get_or_create(
         user=mentor,
         account_type="mentor",
@@ -130,16 +130,16 @@ def handle_mentor_session_booking(request):
     if created:
         logger.info(f"Stripe account automatically created for mentor {mentor.email}")
 
-    # ✅ UPDATED: Always retrieve latest account info from Stripe and sync onboarding_complete
+    # UPDATED: Always retrieve latest account info from Stripe and sync onboarding_complete
     try:
         account = stripe.Account.retrieve(mentor_account.stripe_account_id)
-        mentor_account.onboarding_complete = (account.capabilities.get("transfers") == "active")  # ✅ NEW
-        mentor_account.save()  # ✅ NEW
+        mentor_account.onboarding_complete = (account.capabilities.get("transfers") == "active")  
+        mentor_account.save()  
     except stripe.error.StripeError as e:
         logger.error(f"Failed to retrieve Stripe account: {str(e)}")
         return Response({'error': 'Unable to verify mentor Stripe account.'}, status=400)
 
-    # ✅ UPDATED: Check onboarding status based on local DB sync value
+    #  UPDATED: Check onboarding status based on local DB sync value
     if not mentor_account.onboarding_complete:
         logger.warning(f"Mentor {mentor.email} does not have active transfer capability.")
         onboarding_link = stripe.AccountLink.create(
@@ -554,19 +554,7 @@ def stripe_webhook(request):
         except SessionBooking.DoesNotExist:
             pass
 
-    # Checkout session completed (subscription purchased)
-    elif event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        checkout_id = session['id']
-        subscription_id = session.get('subscription')
-        try:
-            sub = Subscription.objects.get(stripe_checkout_session_id=checkout_id)
-            sub.stripe_subscription_id = subscription_id
-            sub.active = True
-            sub.start_date = timezone.now()
-            sub.save()
-        except Subscription.DoesNotExist:
-            pass
+ 
 
     # Add more event handlers as needed
 

@@ -35,9 +35,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True) # for stripe gateway
-    referral_code = models.CharField(max_length=20, unique=True, blank=True, null=True)
-    referred_by = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='referrals')
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
     is_premium = models.BooleanField(default=False)
 
     USERNAME_FIELD = "email"

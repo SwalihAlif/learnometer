@@ -202,3 +202,32 @@ class AdminAddTestBalanceView(APIView):
         except Exception as e:
             logger.exception("Unexpected error while adding test balance.")
             return Response({"error": "Internal server error."}, status=500)
+
+
+# --------------------------------- Admin notifications
+
+
+from .models import AdminNotification
+from .serializers import AdminNotificationSerializer
+
+class AdminNotificationsListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        notifications = AdminNotification.objects.order_by('-created_at')[:10]  
+        serializer = AdminNotificationSerializer(notifications, many=True)
+        return Response(serializer.data)
+
+
+class AdminNotificationMarkReadView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        ids = request.data.get("notification_ids", [])
+
+        if not isinstance(ids, list):
+            return Response({"error": "notification_ids should be a list."}, status=400)
+
+        updated_count = AdminNotification.objects.filter(id__in=ids).update(is_read=True)
+
+        return Response({"message": f"{updated_count} notifications marked as read."})
