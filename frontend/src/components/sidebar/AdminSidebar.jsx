@@ -26,6 +26,7 @@ const AdminSidebar = () => {
     { name: 'Reviews', icon: MessageSquare, path: '/admin/reviews' },
     { name: 'Premium & Referrals', icon: Crown, path: '/admin/premium' },
     { name: 'Payments', icon: CreditCard, path: '/admin/payments' },
+    { name: 'Add Test Balance', icon: CreditCard, path: '/admin/test-balance' },
     { name: 'Notifications', icon: Bell, path: '/admin/notifications' },
     { name: 'Motivation Quotes', icon: Quote, path: '/admin/quotes' },
     { name: 'Motivation Books', icon: Book, path: '/admin/books' },

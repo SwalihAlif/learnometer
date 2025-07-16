@@ -24,6 +24,8 @@ import BookSession from './pages/learner/BookSession';
 import LearnerMySessions from './pages/learner/LearnerMySessions';
 import LearnerChat from './pages/learner/LearnerChat';
 import LearnerVideoPage from './pages/learner/LearnerVideoPage';
+import PremiumSuccessPage from './pages/learner/PremiumSuccessPage';
+import PremiumCancelPage from './pages/learner/PremiumCancelPage';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
@@ -35,6 +37,7 @@ import CheckingList from './pages/mentor/CheckingGet';
 import MentorChat from './pages/mentor/MentorChat';
 import MentorChatList from './pages/mentor/MentorChatList';
 import MentorVideoPage from './pages/mentor/MentorVideoPage';
+import MentorEarningsPage from './pages/mentor/MentorEarnings';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -52,6 +55,8 @@ import SessionsPage from './pages/admin/SessionsPage';
 import FeedbackModal from './pages/admin/FeedbackModal';
 import ReviewModal from './pages/admin/ReviewModal';
 
+import AdminAddTestBalancePage from './pages/admin/TestBalance';
+
 // Auth pages
 import LoginPage from "./components/auth/Login";
 import LearnerRegistration from "./components/auth/RegisterLearner";
@@ -59,6 +64,7 @@ import RegisterMentor from "./components/auth/RegisterMentor";
 import VerifyOTP from "./components/auth/VerifyOTP";
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
+import LearnerPremiumPage from './pages/learner/LearnerPremiumPage';
 
 
 export default function App() {
@@ -80,9 +86,12 @@ export default function App() {
               <Route path="all-mentors" element={<MentorList />} />
               <Route path="book-session/:mentorId" element={<BookSession />} />
               <Route path="my-sessions" element={<LearnerMySessions />} />
-              {/* Updated chat route for learner to expect a mentorId */}
               <Route path="chat/:mentorId" element={<LearnerChat />} />
               <Route path="meet/:sessionId" element={<LearnerVideoPage />} />
+              <Route path="premium-success" element={<PremiumSuccessPage />} />
+              <Route path="premium-cancel" element={<PremiumCancelPage />} />
+              <Route path="premium" element={<LearnerPremiumPage />} />
+
             </Route>
 
             {/* Mentor Layout */}
@@ -96,6 +105,7 @@ export default function App() {
               <Route path="chat-list" element={<MentorChatList />} />
               <Route path="chat/:learnerId" element={<MentorChat />} />
               <Route path="meet/:sessionId" element={<MentorVideoPage />} />
+              <Route path="earnings" element={<MentorEarningsPage />} />
             </Route>
 
             {/* Admin Layout */}
@@ -112,6 +122,7 @@ export default function App() {
               <Route path="sessions" element={<SessionsPage />} />
               <Route path="sessions-feedbacks" element={<FeedbackModal />} />
               <Route path="sessions-reviews" element={<ReviewModal />} />
+              <Route path="test-balance" element={<AdminAddTestBalancePage />} />
             </Route>
 
             {/* Auth Routes */}

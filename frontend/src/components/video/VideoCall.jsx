@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import axiosInstance from "../../axios";
 
 
 export default function VideoCall({ role = "mentor" }) {
@@ -81,14 +82,36 @@ export default function VideoCall({ role = "mentor" }) {
 
         newSocket.onmessage = async (event) => {
             const data = JSON.parse(event.data);
-            console.log("🧠 Received signaling message:", data);
+            console.log("Received signaling message:", data);
+
+            if (data.type === "session-completed") {
+                console.log("Session has been marked as completed");
+
+                setCallStatus("Completed");
+                setCallStarted(false);
+
+                if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                    timerRef.current = null;
+                }
+                if (peerConnection.current) {
+                    peerConnection.current.close();
+                    peerConnection.current = null;
+                }
+                if (localStream) {
+                    localStream.getTracks().forEach((track) => track.stop());
+                    setLocalStream(null);
+                }
+                alert("The mentor has ended the session.");
+                return
+            }
 
             if (data.type === "offer" && role === "learner") {
                 if (!peerConnection.current) {
                     peerConnection.current = createPeerConnection();
 
                     peerConnection.current.onconnectionstatechange = () => {
-                        console.log("🔄 Connection state:", peerConnection.current.connectionState);
+                        console.log("Connection state:", peerConnection.current.connectionState);
                     };
                 }
 
@@ -333,7 +356,7 @@ export default function VideoCall({ role = "mentor" }) {
 
 
 
-    const endCall = () => {
+    const endCall = async () => {
         if (localStream) {
             localStream.getTracks().forEach((track) => track.stop());
         }
@@ -345,7 +368,6 @@ export default function VideoCall({ role = "mentor" }) {
 
         setLocalStream(null);
         setCallStarted(false);
-
         setCallStatus("Waiting");
 
         if (timerRef.current) {
@@ -353,6 +375,21 @@ export default function VideoCall({ role = "mentor" }) {
             timerRef.current = null;
         }
         setCallTime(0);
+            // Mentor sends "end-session" only if role === "mentor"
+        if (role === "mentor" && socketRef.current) {
+            socketRef.current.send(JSON.stringify({
+                type: "end-session",
+            }));
+
+            try {
+                //capturing the payment for the mentor after the completion of the meetiong
+                const res = await axiosInstance.post(`mentorship/capture-session-payment/${sessionId}/`);
+                console.log("Mentor session payment captured: ", res.data);
+            } catch (error) {
+                console.error("Error capturing session payment:", error);
+                alert("Payment capture failed. Please check your wallet balance.");
+            }
+        }
     };
 
     const formatTime = (seconds) => {
