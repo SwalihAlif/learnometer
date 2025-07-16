@@ -26,6 +26,7 @@ import LearnerChat from './pages/learner/LearnerChat';
 import LearnerVideoPage from './pages/learner/LearnerVideoPage';
 import PremiumSuccessPage from './pages/learner/PremiumSuccessPage';
 import PremiumCancelPage from './pages/learner/PremiumCancelPage';
+import LearnerEarnings from './pages/learner/LearnerEarnings';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
@@ -43,19 +44,17 @@ import MentorEarningsPage from './pages/mentor/MentorEarnings';
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageLearner from "./pages/admin/ManageLearner";
 import ManageMentors from "./pages/admin/ManageMentors";
-
 import AdminLearners from './pages/admin/CoursesEntry';
 import LearnerCourses from './pages/admin/LearnerCourses';
 import CourseMainTopics from './pages/admin/CourseMainTopics';
 import Subtopics from './pages/admin/Subtopics';
 import Schedules from './pages/admin/Schedules';
 import Questions from './pages/admin/Questions';
-
 import SessionsPage from './pages/admin/SessionsPage';
 import FeedbackModal from './pages/admin/FeedbackModal';
 import ReviewModal from './pages/admin/ReviewModal';
-
 import AdminAddTestBalancePage from './pages/admin/TestBalance';
+import AdminNotifications from './pages/admin/AdminNotifications';
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -91,6 +90,7 @@ export default function App() {
               <Route path="premium-success" element={<PremiumSuccessPage />} />
               <Route path="premium-cancel" element={<PremiumCancelPage />} />
               <Route path="premium" element={<LearnerPremiumPage />} />
+              <Route path="earnings" element={<LearnerEarnings />} />
 
             </Route>
 
@@ -123,6 +123,7 @@ export default function App() {
               <Route path="sessions-feedbacks" element={<FeedbackModal />} />
               <Route path="sessions-reviews" element={<ReviewModal />} />
               <Route path="test-balance" element={<AdminAddTestBalancePage />} />
+              <Route path="notifications" element={<AdminNotifications />} />
             </Route>
 
             {/* Auth Routes */}
