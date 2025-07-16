@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'adminpanel',
     'channels',
     'chat',
+    'premium',
 
 ]
 
@@ -253,3 +254,6 @@ CSRF_COOKIE_SECURE = False
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY = config("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET")
+
+# added for success and cancel page of the learner subscription
+FRONTEND_URL = "http://localhost:5173"

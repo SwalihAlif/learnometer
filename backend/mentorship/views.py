@@ -5,6 +5,7 @@ from rest_framework import viewsets, permissions, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+import stripe.error
 from users.models import UserProfile
 from .models import MentorAvailability, SessionBooking, Review, Feedback, Subscription, StripeAccount
 from .serializers import (
@@ -76,6 +77,8 @@ class MentorAvailabilityViewSet(viewsets.ModelViewSet):
 # create a stripe customer for payment
 # ----------------------------
 # mentorship/views.py
+# mentorship/views.py
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -97,11 +100,9 @@ def handle_mentor_session_booking(request):
     data = request.data
     logger.info(f"Booking attempt by {user.email} with data: {data}")
 
-    # Validate booking type
     if data.get('type') != 'session':
         return Response({'error': 'Invalid booking type.'}, status=400)
 
-    # Validate required fields
     required_fields = ['mentor_id', 'date', 'start_time', 'end_time', 'amount']
     if not all(field in data for field in required_fields):
         return Response({'error': 'Missing required fields.'}, status=400)
@@ -112,27 +113,34 @@ def handle_mentor_session_booking(request):
     end_time = data['end_time']
     amount = float(data['amount'])
 
-    # Fetch mentor user
     try:
         mentor = User.objects.get(id=mentor_id)
         logger.info(f"Mentor found: {mentor.email}")
     except User.DoesNotExist:
         return Response({'error': 'Mentor not found.'}, status=404)
 
-    # Check for StripeAccount or create one
-    mentor_account = StripeAccount.objects.filter(user=mentor, account_type="mentor").first()
-    if not mentor_account:
-        logger.info(f"No StripeAccount found for mentor {mentor.email}. Creating now.")
-        mentor_account = create_stripe_connect_account(mentor, account_type="mentor")
+    # ✅ UPDATED: Automatically create StripeAccount if missing
+    mentor_account, created = StripeAccount.objects.get_or_create(
+        user=mentor,
+        account_type="mentor",
+        defaults={
+            'stripe_account_id': create_stripe_connect_account(mentor, account_type="mentor").stripe_account_id
+        }
+    )
+    if created:
+        logger.info(f"Stripe account automatically created for mentor {mentor.email}")
 
-    # Check transfer capability
+    # ✅ UPDATED: Always retrieve latest account info from Stripe and sync onboarding_complete
     try:
         account = stripe.Account.retrieve(mentor_account.stripe_account_id)
+        mentor_account.onboarding_complete = (account.capabilities.get("transfers") == "active")  # ✅ NEW
+        mentor_account.save()  # ✅ NEW
     except stripe.error.StripeError as e:
         logger.error(f"Failed to retrieve Stripe account: {str(e)}")
         return Response({'error': 'Unable to verify mentor Stripe account.'}, status=400)
 
-    if account.capabilities.get("transfers") != "active":
+    # ✅ UPDATED: Check onboarding status based on local DB sync value
+    if not mentor_account.onboarding_complete:
         logger.warning(f"Mentor {mentor.email} does not have active transfer capability.")
         onboarding_link = stripe.AccountLink.create(
             account=mentor_account.stripe_account_id,
@@ -145,14 +153,11 @@ def handle_mentor_session_booking(request):
             'onboarding_url': onboarding_link.url
         }, status=400)
 
-    # Create Stripe customer if not exists
     stripe_customer_id = create_stripe_customer(user)
 
-    # Calculate fees
     platform_fee = round(amount * 0.2, 2)
     mentor_payout = round(amount - platform_fee, 2)
 
-    # Create Stripe PaymentIntent
     try:
         intent = stripe.PaymentIntent.create(
             amount=int(amount * 100),
@@ -175,7 +180,6 @@ def handle_mentor_session_booking(request):
         logger.error(f"Stripe error during PaymentIntent creation: {str(e)}")
         return Response({'error': str(e)}, status=400)
 
-    # Create session booking in DB
     booking = SessionBooking.objects.create(
         learner=user,
         mentor=mentor,
@@ -185,7 +189,7 @@ def handle_mentor_session_booking(request):
         amount=amount,
         platform_fee=platform_fee,
         mentor_payout=mentor_payout,
-        status=SessionBooking.Status.PENDING,
+        status=SessionBooking.Status.CONFIRMED,  # ✅ UPDATED: Set status as CONFIRMED by default
         payment_status=SessionBooking.PaymentStatus.HOLDING,
         stripe_payment_intent_id=intent.id,
     )
@@ -196,6 +200,139 @@ def handle_mentor_session_booking(request):
         'paymentIntentId': intent.id,
         'bookingId': booking.id,
     })
+
+
+# ----------------------------
+# After completion of the session, capturing mentor session payment
+# ----------------------------
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def capture_mentor_session_payment(request, booking_id):
+    user = request.user
+    logger.info(f"capturing mentor session paymnent details- user: {user} booking id: {booking_id}")
+
+    try:
+        booking = SessionBooking.objects.select_related("mentor").get(id=booking_id)
+        
+        if booking.payment_status != SessionBooking.PaymentStatus.HOLDING:
+            logger.info("Booking payment status is not holding.")
+            return Response({'error': 'Payment already captured or not in holding state.'}, status=400)
+        
+        logger.info(f"Checking stripe_payment_intent_id: {booking.stripe_payment_intent_id}")
+        if not booking.stripe_payment_intent_id:
+            logger.info(f"Stripe payment intent id: {booking.stripe_payment_intent_id}")
+            return Response({'error': 'No associate payment intent.'}, status=400)
+        
+        #step 1: capture payment through stripe
+        intent = stripe.PaymentIntent.capture(booking.stripe_payment_intent_id)
+        logger.info(f"PaymentIntent {intent.id} captured successfully.")
+
+        #step 2: Update session booking status
+        booking.status = SessionBooking.Status.COMPLETED
+        booking.payment_status = SessionBooking.PaymentStatus.RELEASED
+        booking.is_payment_captured = True
+        booking.captured_at = timezone.now()
+        booking.save()
+
+        #step 3: update mentor wallet balance
+        try:
+            mentor_account = StripeAccount.objects.get(user=booking.mentor, account_type="mentor")
+        except StripeAccount.DoesNotExist:
+            logger.error(f"Mentor StripeAccount not found for user {booking.mentor.email}")
+            return Response({'error': 'Mentor payment account not found.'}, status=404)
+        
+        # step 3.1
+        if mentor_account.account_type != "mentor":
+            logger.warning(f"Invalid account type detected for {booking.mentor.email}")
+            return Response({'error': 'Invalid account type.'}, status=400)
+        
+        mentor_account.wallet_balance += booking.mentor_payout
+        mentor_account.save()
+
+        return Response({
+            'message': 'Payment captured and mentor wallet updated successfully.',
+            'mentor_wallet_balance': mentor_account.wallet_balance
+        })
+    
+    except SessionBooking.DoesNotExist:
+        return Response({'error': 'Booking not found.'}, status=404)
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe capture error: {str(e)}")
+        return Response({'error': str(e)}, status=400)
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return Response({'error': 'Unexpected error.'}, status=500)
+        
+# ----------------------------
+# Mentor wallet balance
+# ----------------------------
+from . serializers import StripeAccountSerializer
+
+class MentorWalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        try:
+            stripe_account = StripeAccount.objects.get(user=user, account_type='mentor')
+        except StripeAccount.DoesNotExist:
+            logger.error("Stripe account does not exist")
+            return Response({"error": "Mentor stripe account not found."}, status=404)
+        
+        serializer = StripeAccountSerializer(stripe_account)
+        return Response(serializer.data)
+
+# ----------------------------
+# Mentor withdrawal 
+# ----------------------------
+from . models import MentorPayout
+import stripe
+from django.conf import settings
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+class MentorPayoutRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        logger.info(f"Mentor {user} requested to payout..")
+
+        try:
+            stripe_account = StripeAccount.objects.get(user=user, account_type='mentor')
+        except StripeAccount.DoesNotExist:
+            logger.error("Stripe account does not exist..")
+            return Response({"error": "Stripe account not found."}, status=404)
+
+        if stripe_account.wallet_balance <= 0:
+            logger.warning("Insufficient mentor wallet balance..")
+            return Response({"error": "Insufficient wallet balance."}, status=400)
+
+        try:
+            payout = stripe.Transfer.create(
+                amount=int(stripe_account.wallet_balance * 100),  # Convert to cents
+                currency="usd",  # Change as needed
+                destination=stripe_account.stripe_account_id,
+                description="Mentor withdrawal payout"
+            )
+
+            # Log payout in your DB
+            MentorPayout.objects.create(
+                mentor=user,
+                amount=stripe_account.wallet_balance,
+                stripe_payout_id=payout.id,
+                status='completed'
+            )
+
+            # Set wallet balance to 0 after payout
+            stripe_account.wallet_balance = 0
+            stripe_account.save()
+
+            return Response({"message": "Payout successful."})
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 # ----------------------------
 # Session Booking (Create API)

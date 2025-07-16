@@ -129,3 +129,11 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = '__all__'
+
+
+
+# -------------------------- test balance for payouts -----------------------------------------
+from rest_framework import serializers
+
+class AddTestBalanceSerializer(serializers.Serializer):
+    amount = serializers.IntegerField(min_value=1, help_text="Amount in INR")

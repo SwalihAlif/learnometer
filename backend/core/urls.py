@@ -25,4 +25,5 @@ urlpatterns = [
     path('api/topics/', include('topics.urls')),
     path('api/mentorship/', include('mentorship.urls')),
     path('api/chat/', include('chat.urls')),
+    path('api/premium/', include('premium.urls')),
 ]

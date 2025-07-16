@@ -245,8 +245,27 @@ class SessionBookingSerializer(serializers.ModelSerializer):
         dt = datetime.combine(obj.date, obj.start_time)
         return dt.isoformat()
 
+# ------------------------------
+# Session Review Serializer
+# ------------------------------
 
+from .models import StripeAccount
 
+class StripeAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StripeAccount
+        fields = [
+            'stripe_account_id',
+            'onboarding_complete',
+            'account_type',
+            'wallet_balance',
+        ]
+        read_only_fields = [
+            'stripe_account_id',
+            'onboarding_complete',
+            'account_type',
+            'wallet_balance',
+        ]
 
 
 

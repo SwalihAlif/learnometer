@@ -98,6 +98,15 @@ class StripeAccount(models.Model):
         ("learner", "Learner"),
         ("admin", "Admin"),
     ))
+    wallet_balance = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text="Total available balance in the user's wallet after payouts."
+    )
+
+    def __str__(self):
+        return f"{self.user.email} - {self.account_type} - {self.stripe_account_id}"
 
 class Subscription(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='subscription')
@@ -112,6 +121,22 @@ class ReferralEarning(models.Model):
     amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_out = models.BooleanField(default=False)
+
+class MentorPayout(models.Model):
+    mentor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mentor_payouts')
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    stripe_payout_id = models.CharField(max_length=255, blank=True, null=True)
+    status = models.CharField(max_length=30, choices=[
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ], default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Payout {self.id} - {self.mentor.email} - ₹{self.amount} - {self.status}"
+
 
 # ----------------------
 # Review

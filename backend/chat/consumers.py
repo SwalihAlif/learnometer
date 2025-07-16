@@ -6,6 +6,7 @@ from channels.generic.websocket import WebsocketConsumer
 from asgiref.sync import async_to_sync
 from channels.db import database_sync_to_async # For wrapping synchronous DB ops
 from django.contrib.auth import get_user_model
+from mentorship.models import SessionBooking
 from .models import ChatMessage
 from django.utils import timezone
 from django.db import transaction
@@ -32,18 +33,41 @@ class SignalingConsumer(WebsocketConsumer):
     def receive(self, text_data):
         try:
             data = json.loads(text_data)
-            async_to_sync(self.channel_layer.group_send)(
-                self.room_group_name,
-                {
-                    'type': 'signal_message',
-                    'message': data
-                }
-            )
+
+            if data.get("type") == "end-session":
+                self.mark_session_completed(self.room_name)
+                async_to_sync(self.channel_layer.group_send)(
+                    self.room_group_name,
+                    {
+                        'type': 'session_completed'
+                    }
+                )
+            else:
+                async_to_sync(self.channel_layer.group_send)(
+                    self.room_group_name,
+                    {
+                        'type': 'signal_message',
+                        'message': data
+                    }
+                )
         except Exception as e:
+            logger.error(f"Error processing message: {e}")
             self.send(text_data=json.dumps({'error': 'Invalid signal data'}))
 
     def signal_message(self, event):
         self.send(text_data=json.dumps(event['message']))
+
+    def session_completed(self, event): 
+        self.send(text_data=json.dumps({'type': 'session-completed'})) # send session-completed event to frontend.
+
+    def mark_session_completed(self, session_id):
+        try:
+            session = SessionBooking.objects.get(id=session_id)
+            session.status = 'completed'
+            session.save()
+            logger.info(f"Session {session_id} marked as completed.")
+        except SessionBooking.DoesNotExist:
+            logger.warning(f"Session {session_id} does not exist.")
 
 
 

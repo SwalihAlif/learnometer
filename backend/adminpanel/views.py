@@ -155,3 +155,50 @@ class AdminDashboardStatsAPIView(APIView):
             "feedback_with_links": feedback_with_links,
             "total_revenue": round(total_revenue, 2)
         })
+
+
+#------------------------------ Addding test balance for payoutssss -----------------------------------
+from rest_framework.permissions import IsAdminUser
+from . serializers import AddTestBalanceSerializer
+from django.conf import settings
+import stripe
+import logging
+
+logger = logging.getLogger(__name__)
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+class AdminAddTestBalanceView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = AddTestBalanceSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        amount_in_inr = serializer.validated_data["amount"]
+        amount_in_paise = amount_in_inr * 100
+
+        try:
+            charge = stripe.Charge.create(
+                amount=amount_in_paise,
+                currency="inr",
+                source="tok_bypassPending",
+                description=f"Admin test balance top-up ₹{amount_in_inr}",
+            )
+
+            logger.info(f"Admin added ₹{amount_in_inr} to platform balance. Charge ID: {charge.id}")
+
+            return Response({
+                "message": f"Test balance of ₹{amount_in_inr} added successfully.",
+                "charge_id": charge.id
+            })
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error while adding test balance: {str(e)}")
+            return Response({"error": str(e)}, status=500)
+
+        except Exception as e:
+            logger.exception("Unexpected error while adding test balance.")
+            return Response({"error": "Internal server error."}, status=500)

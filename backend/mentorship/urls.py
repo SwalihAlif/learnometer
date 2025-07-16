@@ -7,11 +7,11 @@ from .views import (
     MentorListAPIView,
     ReviewCreateAPIView, ReviewDetailAPIView,
     FeedbackUploadAPIView, 
-    # FeedbackDetailAPIView,
     FeedbackBySessionAPIView, FeedbackRetrieveAPIView,
-    CheckingUploadView
+    CheckingUploadView,
+    MentorWalletView, MentorPayoutRequestView
 )
-from .views import handle_mentor_session_booking
+from .views import handle_mentor_session_booking, capture_mentor_session_payment
 
 
 router = DefaultRouter()
@@ -27,6 +27,7 @@ urlpatterns = [
     path('my-sessions/', MySessionsAPIView.as_view(), name='my-sessions'),
 
     path('book-session/', handle_mentor_session_booking, name='book-mentor-session'),
+    path('capture-session-payment/<int:booking_id>/', capture_mentor_session_payment, name='capture-mentor-session-payment'),
 
 
 
@@ -36,6 +37,10 @@ urlpatterns = [
     path("feedbacks/", FeedbackUploadAPIView.as_view(), name="feedback-create"),
     path('feedbacks/session/<int:session_id>/', FeedbackBySessionAPIView.as_view(), name='feedback-by-session'),
     path('feedbacks/<int:feedback_id>/', FeedbackRetrieveAPIView.as_view(), name='feedback-detail'),
+
+    path('mentor/wallet-balance/', MentorWalletView.as_view(), name='mentor-wallet-balance'),
+    path('mentor/request-payout/', MentorPayoutRequestView.as_view(), name='mentor-request-payout'),
+
 
 
 
