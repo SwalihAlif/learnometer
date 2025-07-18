@@ -9,22 +9,45 @@ const LearningSchedulePage = () => {
   const [schedule, setSchedule] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const normalizeSchedule = (rawSchedule) => {
-    const normalized = {};
-    for (const [date, items] of Object.entries(rawSchedule || {})) {
-      normalized[date] = Array.isArray(items) ? items : [items];
-    }
-    return normalized;
-  };
+// const normalizeSchedule = (rawSchedule) => {
+//   console.log("Raw schedule before normalization:", rawSchedule);
 
-  const fetchSchedule = async () => {
-    try {
-      const res = await axiosInstance.get('topics/schedule/');
-      setSchedule(normalizeSchedule(res.data));
-    } catch (err) {
-      console.error('Failed to fetch schedule:', err);
-    }
-  };
+//   const normalized = {};
+//   for (const [date, items] of Object.entries(rawSchedule || {})) {
+//     normalized[date] = Array.isArray(items) ? items : [items];
+//   }
+
+//   console.log("Normalized schedule:", normalized);
+//   return normalized;
+// };
+
+const normalizeSchedule = (rawSchedule) => {
+  console.log("Raw schedule before normalization:", rawSchedule);
+
+  const grouped = {};
+
+  Object.entries(rawSchedule || {}).forEach(([date, items]) => {
+    grouped[date] = items.map(item => ({
+      title: item.topic_title || item.title,
+      start: item.start_time?.slice(0, 5),
+      end: item.end_time?.slice(0, 5),
+    }));
+  });
+
+  console.log("Normalized schedule:", grouped);
+  return grouped;
+};
+
+const fetchSchedule = async () => {
+  try {
+    const res = await axiosInstance.get('topics/schedule/');
+    console.log("API response data:", res.data);
+    setSchedule(normalizeSchedule(res.data));
+  } catch (err) {
+    console.error('Failed to fetch schedule:', err);
+  }
+};
+
 
   const generateSchedule = async () => {
     setLoading(true);
@@ -78,78 +101,78 @@ const LearningSchedulePage = () => {
 
   useEffect(() => {
     fetchSchedule();
-  }, );
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-yellow-50 py-4 px-4 sm:py-8 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-{/* Header Section */}
-<div className="bg-gradient-to-r from-[#4F46E5] to-indigo-600 text-white rounded-2xl shadow-2xl overflow-hidden mb-8">
-  <div className="px-6 py-8 sm:px-8 sm:py-12">
-    <div className="flex items-center justify-center gap-4 text-center">
-      <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 sm:p-4 flex items-center justify-center">
-        <Calendar className="w-8 h-8 sm:w-10 sm:h-10" />
-      </div>
-      <div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1">
-          Your Learning Schedule
-        </h1>
-        <p className="text-[#FACC15] text-sm sm:text-base lg:text-lg font-medium">
-          "Consistent progress is better than delayed perfection."
-        </p>
-      </div>
-    </div>
-  </div>
-  <div className="h-2 bg-gradient-to-r from-[#FACC15] to-yellow-300"></div>
-</div>
-
-
-{Object.keys(schedule).length === 0 ? (
-  <div className="text-center py-10">
-    <div className="bg-white rounded-xl shadow p-6 max-w-xl mx-auto border border-gray-200">
-      <div className="bg-[#F9FAFB] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-        <BookOpen className="w-8 h-8 text-[#4F46E5]" />
-      </div>
-      <h3 className="text-lg font-semibold text-[#1E1B4B] mb-2">No Schedule Yet</h3>
-      <p className="text-gray-600 text-sm">
-        Ready to start your learning journey? Generate your personalized schedule below.
-      </p>
-    </div>
-  </div>
-) : (
-  <div className="space-y-4 mb-6">
-    {Object.keys(schedule).map((date) => (
-      <div key={date}>
-        <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
-          
-          {/* Date Header */}
-          <div className="bg-gradient-to-r from-[#4F46E5] to-indigo-600 px-4 py-3 flex items-center gap-2">
-            <div className="bg-white/20 backdrop-blur-sm rounded p-1.5">
-              <Calendar className="w-4 h-4 text-white" />
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-[#4F46E5] to-indigo-600 text-white rounded-2xl shadow-2xl overflow-hidden mb-8">
+          <div className="px-6 py-8 sm:px-8 sm:py-12">
+            <div className="flex items-center justify-center gap-4 text-center">
+              <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 sm:p-4 flex items-center justify-center">
+                <Calendar className="w-8 h-8 sm:w-10 sm:h-10" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1">
+                  Your Learning Schedule
+                </h1>
+                <p className="text-[#FACC15] text-sm sm:text-base lg:text-lg font-medium">
+                  "Consistent progress is better than delayed perfection."
+                </p>
+              </div>
             </div>
-            <h2 className="text-sm font-semibold text-white">{date}</h2>
           </div>
+          <div className="h-2 bg-gradient-to-r from-[#FACC15] to-yellow-300"></div>
+        </div>
 
-          {/* Schedule Items */}
-          <div className="p-4 space-y-3">
-            {schedule[date].map((item, idx) => (
-              <div key={idx} className="bg-[#F9FAFB] border-l-4 border-[#FACC15] rounded-lg px-3 py-2 hover:bg-gray-50 transition">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-[#1E1B4B] hover:text-[#4F46E5]">{item.title}</h3>
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                    <Clock className="w-3.5 h-3.5 text-[#4F46E5]" />
-                    <span>{item.start} - {item.end}</span>
+
+        {Object.keys(schedule).length === 0 ? (
+          <div className="text-center py-10">
+            <div className="bg-white rounded-xl shadow p-6 max-w-xl mx-auto border border-gray-200">
+              <div className="bg-[#F9FAFB] rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <BookOpen className="w-8 h-8 text-[#4F46E5]" />
+              </div>
+              <h3 className="text-lg font-semibold text-[#1E1B4B] mb-2">No Schedule Yet</h3>
+              <p className="text-gray-600 text-sm">
+                Ready to start your learning journey? Generate your personalized schedule below.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 mb-6">
+            {Object.keys(schedule).map((date) => (
+              <div key={date}>
+                <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+
+                  {/* Date Header */}
+                  <div className="bg-gradient-to-r from-[#4F46E5] to-indigo-600 px-4 py-3 flex items-center gap-2">
+                    <div className="bg-white/20 backdrop-blur-sm rounded p-1.5">
+                      <Calendar className="w-4 h-4 text-white" />
+                    </div>
+                    <h2 className="text-sm font-semibold text-white">{date}</h2>
                   </div>
+
+                  {/* Schedule Items */}
+                  <div className="p-4 space-y-3">
+                    {schedule[date].map((item, idx) => (
+                      <div key={idx} className="bg-[#F9FAFB] border-l-4 border-[#FACC15] rounded-lg px-3 py-2 hover:bg-gray-50 transition">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-sm font-medium text-[#1E1B4B] hover:text-[#4F46E5]">{item.title}</h3>
+                          <div className="flex items-center gap-1 text-xs text-gray-600">
+                            <Clock className="w-3.5 h-3.5 text-[#4F46E5]" />
+                            <span>{item.start} - {item.end}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                 </div>
               </div>
             ))}
           </div>
-
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+        )}
 
 
         {/* Action Buttons */}

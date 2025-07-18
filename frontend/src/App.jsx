@@ -27,6 +27,9 @@ import LearnerVideoPage from './pages/learner/LearnerVideoPage';
 import PremiumSuccessPage from './pages/learner/PremiumSuccessPage';
 import PremiumCancelPage from './pages/learner/PremiumCancelPage';
 import LearnerEarnings from './pages/learner/LearnerEarnings';
+import HabitTracker from './pages/learner/HabitTracker';
+import HabitPath from './components/habits/HabitPath';
+import LearnerMotivationPage from './pages/learner/LearnerMotivation';
 
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
@@ -55,6 +58,9 @@ import FeedbackModal from './pages/admin/FeedbackModal';
 import ReviewModal from './pages/admin/ReviewModal';
 import AdminAddTestBalancePage from './pages/admin/TestBalance';
 import AdminNotifications from './pages/admin/AdminNotifications';
+import AdminQuotesPage from './pages/admin/AdminQuotes';
+import AdminVideosPage from './pages/admin/AdminVideo';
+import AdminBooksPage from './pages/admin/AdminBook';
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -91,6 +97,9 @@ export default function App() {
               <Route path="premium-cancel" element={<PremiumCancelPage />} />
               <Route path="premium" element={<LearnerPremiumPage />} />
               <Route path="earnings" element={<LearnerEarnings />} />
+              <Route path="habits" element={<HabitTracker />} />
+              <Route path="habit/:habitId" element={<HabitPath />} />
+              <Route path="motivation" element={<LearnerMotivationPage />} />
 
             </Route>
 
@@ -124,6 +133,9 @@ export default function App() {
               <Route path="sessions-reviews" element={<ReviewModal />} />
               <Route path="test-balance" element={<AdminAddTestBalancePage />} />
               <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="quotes" element={<AdminQuotesPage />} />
+              <Route path="videos" element={<AdminVideosPage />} />
+              <Route path="books" element={<AdminBooksPage />} />
             </Route>
 
             {/* Auth Routes */}

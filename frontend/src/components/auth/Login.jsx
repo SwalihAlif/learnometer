@@ -213,7 +213,7 @@ const LearnometerLogin = () => {
             </div>
 
             {/* Divider */}
-            <div className="my-6">
+            {/* <div className="my-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-300"></div>
@@ -222,16 +222,16 @@ const LearnometerLogin = () => {
                   <span className="px-4 bg-white text-gray-500">OR Sign in with</span>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* SSO Button */}
-            <button
+            {/* <button
               onClick={() => loginWithGoogle()}
               className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all"
             >
               <Chrome className="w-5 h-5 mr-3 text-blue-500" />
               Continue with Google
-            </button>
+            </button> */}
 
 
             {/* Registration Divider */}
