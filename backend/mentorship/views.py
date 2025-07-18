@@ -1,6 +1,4 @@
 from django.shortcuts import render
-
-# Create your views here.
 from rest_framework import viewsets, permissions, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -16,13 +14,37 @@ from .serializers import (
     FeedbackSerializer
 
 )
-from django.core.exceptions import ObjectDoesNotExist
-from users.serializers import UserProfileSerializer
 from django.utils import timezone
-
+from rest_framework.decorators import api_view, permission_classes
+from django.conf import settings
+from .models import SessionBooking, StripeAccount
+from .utils import create_stripe_customer, create_stripe_connect_account
+import stripe
+from django.contrib.auth import get_user_model
+from . serializers import StripeAccountSerializer
+from . models import MentorPayout
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from django.db.models import Q
+from datetime import datetime, timedelta
+from .models import SessionBooking
+from .serializers import SessionBookingSerializer
+from rest_framework import status, permissions
+from cloudinary.uploader import upload as cloudinary_upload
+from cloudinary.exceptions import Error as CloudinaryError
+from .models import Feedback, SessionBooking
+from .serializers import FeedbackSerializer
 import logging
-logger = logging.getLogger(__name__)
+from .models import Feedback, SessionBooking
+from .serializers import FeedbackSerializer
+from django.shortcuts import get_object_or_404
 
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+import json
+
+
+logger = logging.getLogger(__name__)
 
 # ----------------------------
 # Mentor Publicly Listing API View 
@@ -76,22 +98,9 @@ class MentorAvailabilityViewSet(viewsets.ModelViewSet):
 # ----------------------------
 # create a stripe customer for payment
 # ----------------------------
-# mentorship/views.py
-# mentorship/views.py
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from django.conf import settings
-from .models import SessionBooking, StripeAccount
-from .utils import create_stripe_customer, create_stripe_connect_account
-import stripe
-from django.contrib.auth import get_user_model
-import logging
-
 User = get_user_model()
 stripe.api_key = settings.STRIPE_SECRET_KEY
-logger = logging.getLogger(__name__)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -266,7 +275,6 @@ def capture_mentor_session_payment(request, booking_id):
 # ----------------------------
 # Mentor wallet balance
 # ----------------------------
-from . serializers import StripeAccountSerializer
 
 class MentorWalletView(APIView):
     permission_classes = [IsAuthenticated]
@@ -286,9 +294,6 @@ class MentorWalletView(APIView):
 # ----------------------------
 # Mentor withdrawal 
 # ----------------------------
-from . models import MentorPayout
-import stripe
-from django.conf import settings
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -337,21 +342,6 @@ class MentorPayoutRequestView(APIView):
 # ----------------------------
 # Session Booking (Create API)
 # ----------------------------
-# mentorship/viewsets.py
-
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
-from django.utils import timezone
-from django.db.models import Q
-from datetime import datetime, timedelta
-from .models import SessionBooking
-from .serializers import SessionBookingSerializer
-import logging
-
-logger = logging.getLogger(__name__)
-
 class SessionBookingViewSet(viewsets.ModelViewSet):
     queryset = SessionBooking.objects.all()
     serializer_class = SessionBookingSerializer
@@ -494,7 +484,6 @@ class MySessionsAPIView(APIView):
 # ----------------------------
 # Create a Stripe Connect account for payout
 # ----------------------------
-from rest_framework.views import APIView
 
 class BeginPayoutOnboarding(APIView):
     permission_classes = [IsAuthenticated]
@@ -527,9 +516,6 @@ class BeginPayoutOnboarding(APIView):
 # ----------------------------
 # Stripe webhook endpoint
 # ----------------------------
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse
-import json
 
 @csrf_exempt
 def stripe_webhook(request):
@@ -607,16 +593,6 @@ class ReviewDetailAPIView(APIView):
 # ----------------------------
 # Mentor Creating Feedback after session
 # ----------------------------
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from cloudinary.uploader import upload as cloudinary_upload
-from cloudinary.exceptions import Error as CloudinaryError
-from .models import Feedback, SessionBooking
-from .serializers import FeedbackSerializer
-import logging
-
-logger = logging.getLogger(__name__)
 
 class FeedbackUploadAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -653,12 +629,6 @@ class FeedbackUploadAPIView(APIView):
 # Mentor Feedback details
 # ----------------------------
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from .models import Feedback, SessionBooking
-from .serializers import FeedbackSerializer
-from django.shortcuts import get_object_or_404
 
 class FeedbackBySessionAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -678,12 +648,12 @@ class FeedbackRetrieveAPIView(APIView):
         feedback = get_object_or_404(Feedback, id=feedback_id)
         serializer = FeedbackSerializer(feedback)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+    
 
 #cheking vie............................
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 import cloudinary.uploader
 from .models import Checking
 from .serializers import CheckingSerializer

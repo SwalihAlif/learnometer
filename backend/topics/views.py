@@ -264,10 +264,12 @@ class GenerateLearningScheduleView(APIView):
             f"{chr(10).join(topic_lines)}\n\n"
             "Estimate time needed per topic based on complexity of title and description.\n"
             "Distribute them across available slots, avoid overlap.\n\n"
+            f"Today is {datetime.today().strftime('%Y-%m-%d')}.\n"
+            "Please generate a schedule using only future dates starting from today.\n"
             "Return result in JSON format like:\n"
             "{\n"
-            '  "2025-06-29": [{"title": "HTML", "start": "10:00", "end": "11:00"}],\n'
-            '  "2025-06-30": [{"title": "CSS", "start": "10:00", "end": "11:30"}]\n'
+            '  "2025-07-18": [{"title": "HTML", "start": "10:00", "end": "11:00"}],\n'
+            '  "2025-07-19": [{"title": "CSS", "start": "10:00", "end": "11:30"}]\n'
             "}"
         )
 
@@ -348,7 +350,6 @@ class GenerateLearningScheduleView(APIView):
 
 
 
-
 from datetime import date
 from collections import defaultdict
 
@@ -357,17 +358,27 @@ class LearnerScheduleView(APIView):
 
     def get(self, request):
         user = request.user
+
+        # First try: Future schedules
         schedules = Schedule.objects.filter(user=user, date__gte=date.today()).order_by('date', 'start_time')
 
+        # If none, fallback: All schedules
+        if not schedules.exists():
+            schedules = Schedule.objects.filter(user=user).order_by('date', 'start_time')
+
         grouped = defaultdict(list)
-        for schedule in schedules:
-            grouped[str(schedule.date)].append({
-                "title": schedule.topic.title,
-                "start": schedule.start_time.strftime('%H:%M'),
-                "end": schedule.end_time.strftime('%H:%M'),
+        for s in schedules:
+            grouped[str(s.date)].append({
+                "id": s.id,
+                "topic": s.topic.id,
+                "topic_title": s.topic.title,
+                "date": str(s.date),
+                "start_time": s.start_time.strftime('%H:%M:%S'),
+                "end_time": s.end_time.strftime('%H:%M:%S'),
             })
 
         return Response(grouped)
+
     
 
 

@@ -231,3 +231,71 @@ class AdminNotificationMarkReadView(APIView):
         updated_count = AdminNotification.objects.filter(id__in=ids).update(is_read=True)
 
         return Response({"message": f"{updated_count} notifications marked as read."})
+
+
+# -------------------------------- Admin Quotes CRUD ---------------------------------------------------------
+from rest_framework import viewsets
+from .models import MotivationalQuote
+from .serializers import MotivationalQuoteSerializer
+from .models import MotivationalQuote
+from .serializers import MotivationalQuoteSerializer
+
+class MotivationalQuoteViewSet(viewsets.ModelViewSet):
+    queryset = MotivationalQuote.objects.all().order_by('-created_at')
+    serializer_class = MotivationalQuoteSerializer
+    permission_classes = [IsAdminUser]
+
+# -------------------------------- Admin Quotes CRUD ---------------------------------------------------------
+from .models import MotivationalVideo
+from .serializers import MotivationalVideoSerializer
+
+class MotivationalVideoViewSet(viewsets.ModelViewSet):
+    queryset = MotivationalVideo.objects.all().order_by('-created_at')
+    serializer_class = MotivationalVideoSerializer
+    permission_classes = [IsAdminUser]
+
+# -------------------------------- Admin Quotes CRUD ---------------------------------------------------------
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import MotivationalBook
+from .serializers import MotivationalBookSerializer
+
+class MotivationalBookViewSet(viewsets.ModelViewSet):
+    queryset = MotivationalBook.objects.all().order_by('-created_at')
+    serializer_class = MotivationalBookSerializer
+    permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+# -------------------------------- Daily Quote in the user side ---------------------------------------------------------
+import random
+from rest_framework.decorators import api_view
+
+@api_view(['GET'])
+def random_daily_quote(request):
+    quotes = MotivationalQuote.objects.all()
+    if quotes.exists():
+        quote = random.choice(quotes)
+        return Response({'id': quote.id, 'quote': quote.quote, 'author': quote.author})
+    return Response({'message': 'No quotes available.'}, status=404)
+
+# -------------------------------- Video in the user side ---------------------------------------------------------
+from rest_framework import viewsets, filters
+from rest_framework.pagination import PageNumberPagination
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 6
+
+class MotivationalVideoPublicViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MotivationalVideo.objects.all().order_by('-created_at')
+    serializer_class = MotivationalVideoSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title']
+# -------------------------------- Books in the user side ---------------------------------------------------------
+
+class MotivationalBookPublicViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MotivationalBook.objects.all().order_by('-created_at')
+    serializer_class = MotivationalBookSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title']

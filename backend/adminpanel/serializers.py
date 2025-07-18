@@ -137,7 +137,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 class AddTestBalanceSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1, help_text="Amount in INR")
 
-# -------------------------- Mentor notification -----------------------------------------
+# -------------------------- Admin notification -----------------------------------------
 
 from .models import AdminNotification
 
@@ -145,3 +145,41 @@ class AdminNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminNotification
         fields = ['id', 'message', 'created_at', 'is_read']
+
+# -------------------------- Admin Motivation quotes -----------------------------------------
+
+from .models import MotivationalQuote
+
+class MotivationalQuoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MotivationalQuote
+        fields = '__all__'
+
+# -------------------------- Admin Motivation video -----------------------------------------
+from .models import MotivationalVideo
+
+class MotivationalVideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MotivationalVideo
+        fields = '__all__'
+
+# -------------------------- Admin Motivational books -----------------------------------------
+from rest_framework import serializers
+from .models import MotivationalBook
+import cloudinary.utils
+
+class MotivationalBookSerializer(serializers.ModelSerializer):
+    pdf_file_url = serializers.SerializerMethodField()
+    pdf_image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MotivationalBook
+        fields = ['id', 'title', 'pdf_file', 'pdf_image', 'pdf_file_url', 'pdf_image_url', 'created_at']
+        read_only_fields = ['id', 'created_at', 'pdf_file_url', 'pdf_image_url']
+
+    def get_pdf_file_url(self, obj):
+        return f"{obj.pdf_file.url}?fl_attachment" if obj.pdf_file else ""
+
+    def get_pdf_image_url(self, obj):
+        return obj.pdf_image.url if obj.pdf_image else ""
+

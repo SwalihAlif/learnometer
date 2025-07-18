@@ -1,5 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import (
+    MotivationalQuoteViewSet,
+    MotivationalVideoViewSet,
+    MotivationalBookViewSet,
+    MotivationalVideoPublicViewSet,
+    MotivationalBookPublicViewSet,
     LearnerListView,
     CourseListByLearner,
     MainTopicListByCourse,
@@ -13,10 +19,21 @@ from .views import (
     AdminAddTestBalanceView, 
     AdminNotificationsListView, 
     AdminNotificationMarkReadView,
+    random_daily_quote,
 
 )
 
+router = DefaultRouter()
+router.register(r'motivational-quotes', MotivationalQuoteViewSet, basename='motivational-quotes-admin')
+router.register(r'motivational-videos', MotivationalVideoViewSet, basename='motivational-videos-admin')
+router.register(r'public-videos', MotivationalVideoPublicViewSet, basename='motivational-videos-public')
+
+router.register(r'motivational-books', MotivationalBookViewSet, basename='motivational-books-admin')
+router.register(r'public-books', MotivationalBookPublicViewSet, basename='motivational-books-public')
+
 urlpatterns = [
+    path('', include(router.urls)),
+
     path('learners/', LearnerListView.as_view(), name='admin-learners'),
     path('learner/<int:learner_id>/courses/', CourseListByLearner.as_view(), name='admin-courses-by-learner'),
     path('course/<int:course_id>/main-topics/', MainTopicListByCourse.as_view(), name='admin-main-topics-by-course'),
@@ -35,8 +52,7 @@ urlpatterns = [
     path("notifications/", AdminNotificationsListView.as_view()),
     path("notifications/mark-read/", AdminNotificationMarkReadView.as_view()),
 
-
-
+    path('learner/motivation/daily-quote/', random_daily_quote),
 
 
 ]
