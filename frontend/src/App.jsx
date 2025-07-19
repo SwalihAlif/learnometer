@@ -31,6 +31,8 @@ import HabitTracker from './pages/learner/HabitTracker';
 import HabitPath from './components/habits/HabitPath';
 import LearnerMotivationPage from './pages/learner/LearnerMotivation';
 
+import Example from './components/Example';
+
 // Mentor pages
 import MentorDashboard from "./pages/mentor/MentorDashboard";
 import MentorProfile from './pages/mentor/MentorProfile';
@@ -101,6 +103,7 @@ export default function App() {
               <Route path="habit/:habitId" element={<HabitPath />} />
               <Route path="motivation" element={<LearnerMotivationPage />} />
 
+              <Route path="con" element={<Example />} />
             </Route>
 
             {/* Mentor Layout */}

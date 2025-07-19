@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axiosInstance from '../../axios';
+import Confetti from 'react-confetti';
+
 
 const VerifyOTP = () => {
   const navigate = useNavigate();
@@ -8,6 +10,8 @@ const VerifyOTP = () => {
 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('');
+
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   const [otp, setOtp] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -35,6 +39,10 @@ const VerifyOTP = () => {
     }
     return () => clearTimeout(timer);
   }, [countdown]);
+
+    useEffect(() => {
+    setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+  }, []);
 
   const formatCountdown = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -71,10 +79,10 @@ const handleVerifyOTP = async (e) => {
 
 
 
-    // ✅ Set success message
+    //  Set success message
     setSuccess(res.data.message || 'OTP verified successfully!');
 
-    // ✅ Redirect based on role
+    //  Redirect based on role
     setTimeout(() => {
       const userRole = res.data.role?.toLowerCase();  // safer redirect
       if (userRole === 'mentor') {
@@ -119,10 +127,23 @@ const handleVerifyOTP = async (e) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+           
+      <>
+        <Confetti
+          width={windowSize.width}
+          height={windowSize.height}
+          numberOfPieces={400}
+          recycle={false}
+        />
+      </>
+    
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Verify OTP</h1>
-          <p className="text-gray-600">Enter the verification code sent to your email</p>
+          <h1 className="text-3xl font-bold text-green-700 drop-shadow-lg">🎉 Congratulations!</h1>
+          <br />
+          <p className="text-gray-600 mt-1 drop-shadow">
+            You’ve successfully registered. Enter the OTP sent to your email to log in.
+          </p>
         </div>
 
         <div className="space-y-6">
