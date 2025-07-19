@@ -198,188 +198,98 @@ class GenerateAIAnswerView(APIView):
                     f"[Cohere ERROR] Failed to generate answer for user '{user}': {str(ce)}\n{traceback.format_exc()}"
                 )
                 return Response({"error": "Both Gemini and Cohere failed to respond."}, status=500)
+            
 
-
-import re
-import json
-import logging
-from datetime import datetime, timedelta
 
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.conf import settings
+from datetime import datetime
+import json, re, logging
 import google.generativeai as genai
 import cohere
 from .models import MainTopic, Schedule
 from .serializers import ScheduleSerializer
 
-logger = logging.getLogger(__name__)
-
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 cohere_client = cohere.Client(settings.COHERE_API_KEY)
-
-# Helper functions
-def get_next_date_for_day(day_name: str) -> str:
-    weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    today = datetime.today()
-    day_name_lower = day_name.lower()
-    if day_name_lower not in weekdays:
-        return None
-    target_day = weekdays.index(day_name_lower)
-    delta = (target_day - today.weekday() + 7) % 7
-    target_date = today + timedelta(days=delta)
-    return target_date.strftime("%Y-%m-%d")
-
-def is_weekday_name(text: str) -> bool:
-    return text.lower() in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-
+logger = logging.getLogger(__name__)
 
 class GenerateLearningScheduleView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
-        logger.info(f"Generating learning schedule for user: {user.email}")
-
         topics = MainTopic.objects.filter(created_by=user)
         if not topics.exists():
-            logger.warning(f"No topics found for user: {user.email}")
-            return Response({"detail": "No topics available to schedule."}, status=400)
+            return Response({"detail": "No topics available"}, status=400)
 
-        try:
-            profile = user.user_profile
-            availability = profile.availability_schedule
-            logger.debug(f"User availability for {user.email}: {availability}")
-        except Exception as e:
-            logger.error(f"Failed to access user profile for {user.email}: {str(e)}")
-            return Response({"error": "User availability not found."}, status=400)
-
+        availability = user.user_profile.availability_schedule
         topic_lines = [f"{t.title}: {t.description or 'No description'}" for t in topics]
+
         prompt = (
-            "You're a smart schedule generator.\n\n"
-            "The learner has given the following availability for each day:\n"
-            f"{json.dumps(availability, indent=2)}\n\n"
-            "And these are the learning topics:\n"
-            f"{chr(10).join(topic_lines)}\n\n"
-            "Estimate time needed per topic based on complexity of title and description.\n"
-            "Distribute them across available slots, avoid overlap.\n\n"
-            f"Today is {datetime.today().strftime('%Y-%m-%d')}.\n"
-            "Please generate a schedule using only future dates starting from today.\n"
-            "Return result in JSON format like:\n"
-            "{\n"
-            '  "2025-07-18": [{"title": "HTML", "start": "10:00", "end": "11:00"}],\n'
-            '  "2025-07-19": [{"title": "CSS", "start": "10:00", "end": "11:30"}]\n'
-            "}"
+            f"Availability:\n{json.dumps(availability, indent=2)}\n\n"
+            f"Topics:\n{chr(10).join(topic_lines)}\n\n"
+            "Distribute the topics in available times. Use future dates.\n"
+            "Return result like:\n"
+            '{"2025-07-18": [{"title": "HTML", "start": "10:00", "end": "11:00"}]}'
         )
 
-        logger.debug(f"Schedule generation prompt:\n{prompt}")
-
-        data = None
-        source_model = "Gemini"
         try:
             model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
             response = model.generate_content(prompt)
-            raw_output = response.text.strip()
-            logger.debug(f"Raw Gemini response: {raw_output}")
-
-            match = re.search(r"```json\s*(\{.*?\})\s*```", raw_output, re.DOTALL)
-            if not match:
-                match = re.search(r"(\{.*\})", raw_output, re.DOTALL)
-            if not match:
-                raise ValueError("Could not extract JSON from Gemini response")
-
-            json_str = match.group(1)
-            data = json.loads(json_str)
-
-        except Exception as e:
-            logger.warning(f"[Gemini FAILED] for {user.email}: {e} — Trying Cohere")
-            source_model = "Cohere"
+            output = re.search(r"(\{.*\})", response.text, re.DOTALL)
+            data = json.loads(output.group(1)) if output else {}
+        except:
             try:
-                cohere_response = cohere_client.generate(
-                    model="command-r-plus",
-                    prompt=prompt,
-                    max_tokens=300,
-                    temperature=0.4
-                )
-                output = cohere_response.generations[0].text.strip()
-                logger.debug(f"Raw Cohere response: {output}")
-                match = re.search(r"```json\s*(\{.*?\})\s*```", output, re.DOTALL)
-                if not match:
-                    match = re.search(r"(\{.*\})", output, re.DOTALL)
-                if not match:
-                    raise ValueError("Could not extract JSON from Cohere response")
-
-                json_str = match.group(1)
-                data = json.loads(json_str)
-            except Exception as e2:
-                logger.error(f"[Cohere FAILED] for {user.email}: {e2}")
-                return Response({"error": "AI schedule generation failed", "details": str(e2)}, status=500)
-
-        logger.debug(f"Parsed schedule JSON from {source_model}: {json.dumps(data, indent=2)}")
+                res = cohere_client.generate(model="command-r-plus", prompt=prompt, max_tokens=300)
+                output = re.search(r"(\{.*\})", res.generations[0].text, re.DOTALL)
+                data = json.loads(output.group(1)) if output else {}
+            except Exception as e:
+                return Response({"error": "AI failed", "details": str(e)}, status=500)
 
         Schedule.objects.filter(user=user).delete()
-        logger.info(f"Cleared previous schedule for {user.email}")
-
         created = []
-        for key, items in data.items():
-            date_str = get_next_date_for_day(key) if is_weekday_name(key) else key
-
-            if not date_str:
-                logger.warning(f"Invalid date/day key: {key}")
-                continue
-
+        for date_str, items in data.items():
             for item in items:
                 topic = topics.filter(title=item.get("title")).first()
                 if topic:
-                    try:
-                        s = Schedule.objects.create(
-                            user=user,
-                            topic=topic,
-                            date=date_str,
-                            start_time=item.get("start"),
-                            end_time=item.get("end")
-                        )
-                        created.append(s)
-                        logger.debug(f"Created schedule: {s}")
-                    except Exception as e:
-                        logger.error(f"Error saving schedule for topic '{item.get('title')}': {str(e)}")
+                    s = Schedule.objects.create(
+                        user=user,
+                        topic=topic,
+                        date=date_str,
+                        start_time=item["start"],
+                        end_time=item["end"]
+                    )
+                    created.append(s)
 
-        logger.info(f"Generated {len(created)} schedule items for {user.email} using {source_model}")
         return Response(ScheduleSerializer(created, many=True).data)
 
 
-
-from datetime import date
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from collections import defaultdict
+from datetime import date
+from .models import Schedule
 
 class LearnerScheduleView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-
-        # First try: Future schedules
-        schedules = Schedule.objects.filter(user=user, date__gte=date.today()).order_by('date', 'start_time')
-
-        # If none, fallback: All schedules
-        if not schedules.exists():
-            schedules = Schedule.objects.filter(user=user).order_by('date', 'start_time')
+        schedules = Schedule.objects.filter(user=user, date__gte=date.today()).order_by("date", "start_time")
 
         grouped = defaultdict(list)
         for s in schedules:
             grouped[str(s.date)].append({
-                "id": s.id,
-                "topic": s.topic.id,
-                "topic_title": s.topic.title,
-                "date": str(s.date),
-                "start_time": s.start_time.strftime('%H:%M:%S'),
-                "end_time": s.end_time.strftime('%H:%M:%S'),
+                "title": s.topic.title,
+                "start": s.start_time.strftime('%H:%M'),
+                "end": s.end_time.strftime('%H:%M'),
             })
-
         return Response(grouped)
-
-    
+ 
 
 
 import json
