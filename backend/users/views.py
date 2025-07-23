@@ -599,4 +599,11 @@ class AdminMentorRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView)
 
     def get_queryset(self):
         return User.objects.filter(role__name="Mentor").select_related("user_profile")
+    
+#--------------------------------- Check authentication centralized view (users.views.py)----------------------------------------------------------
+class CheckAuthView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'detail': 'authenticated'}, status=200)
 

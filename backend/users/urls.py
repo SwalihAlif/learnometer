@@ -11,6 +11,7 @@ from users.views import (
     PasswordResetConfirmView,
     ForgotPasswordView, 
     CategoryListView,
+    CheckAuthView,
 )
 from .views import (
     AdminLearnerListCreateView,
@@ -39,6 +40,8 @@ urlpatterns = [
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
     path('reset-password/<uidb64>/<token>/', PasswordResetConfirmView.as_view(), name='reset-password-confirm'),
     path('categories/', CategoryListView.as_view(), name='category-list'),
+
+    path('check-auth/', CheckAuthView.as_view()),
     
     
     # admin

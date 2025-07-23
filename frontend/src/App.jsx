@@ -72,7 +72,7 @@ import VerifyOTP from "./components/auth/VerifyOTP";
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 import LearnerPremiumPage from './pages/learner/LearnerPremiumPage';
-import ProtectedRoute from './components/common/ProtectedRoute';
+import PrivateRoute from './components/common/PrivateRoute';
 
 
 export default function App() {
@@ -82,29 +82,31 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             {/* Learner Layout */}
-            <Route path="/learner" element={<LearnerLayout />}>
-              <Route index element={<LearnerDashboard />} />
-              <Route path="my-courses" element={<LearnerMyCourses />} />
-              <Route path="main-topics/:courseId" element={<MainTopics />} />
-              <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
-              <Route path="profile" element={<LearnerProfile />} />
-              <Route path="main-topics/:topicId/notes" element={<NotesPage />} />
-              <Route path="schedule" element={<LearningSchedulePage />} />
-              <Route path="quiz/:mainTopicId" element={<Quiz />} />
-              <Route path="all-mentors" element={<MentorList />} />
-              <Route path="book-session/:mentorId" element={<BookSession />} />
-              <Route path="my-sessions" element={<LearnerMySessions />} />
-              <Route path="chat/:mentorId" element={<LearnerChat />} />
-              <Route path="meet/:sessionId" element={<LearnerVideoPage />} />
-              <Route path="premium-success" element={<PremiumSuccessPage />} />
-              <Route path="premium-cancel" element={<PremiumCancelPage />} />
-              <Route path="premium" element={<LearnerPremiumPage />} />
-              <Route path="earnings" element={<LearnerEarnings />} />
-              <Route path="habits" element={<HabitTracker />} />
-              <Route path="habit/:habitId" element={<HabitPath />} />
-              <Route path="motivation" element={<LearnerMotivationPage />} />
+            <Route element={<PrivateRoute />}>
+              <Route path="/learner" element={<LearnerLayout />}>
+                <Route index element={<LearnerDashboard />} />
+                <Route path="my-courses" element={<LearnerMyCourses />} />
+                <Route path="main-topics/:courseId" element={<MainTopics />} />
+                <Route path="sub-topics/:mainTopicId" element={<SubTopics />} />
+                <Route path="profile" element={<LearnerProfile />} />
+                <Route path="main-topics/:topicId/notes" element={<NotesPage />} />
+                <Route path="schedule" element={<LearningSchedulePage />} />
+                <Route path="quiz/:mainTopicId" element={<Quiz />} />
+                <Route path="all-mentors" element={<MentorList />} />
+                <Route path="book-session/:mentorId" element={<BookSession />} />
+                <Route path="my-sessions" element={<LearnerMySessions />} />
+                <Route path="chat/:mentorId" element={<LearnerChat />} />
+                <Route path="meet/:sessionId" element={<LearnerVideoPage />} />
+                <Route path="premium-success" element={<PremiumSuccessPage />} />
+                <Route path="premium-cancel" element={<PremiumCancelPage />} />
+                <Route path="premium" element={<LearnerPremiumPage />} />
+                <Route path="earnings" element={<LearnerEarnings />} />
+                <Route path="habits" element={<HabitTracker />} />
+                <Route path="habit/:habitId" element={<HabitPath />} />
+                <Route path="motivation" element={<LearnerMotivationPage />} />
 
-              <Route path="con" element={<Example />} />
+                <Route path="con" element={<Example />} />
+              </Route>
             </Route>
 
             {/* Mentor Layout */}
