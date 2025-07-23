@@ -21,8 +21,6 @@ from .views import (
     AdminMentorRetrieveUpdateDeleteView
 )
 
-
-
 urlpatterns = [
     path('token/', CookieTokenObtainPairView.as_view(), name='token_cookie_login'), # login
     path('token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'), # refresh token
@@ -44,12 +42,10 @@ urlpatterns = [
     
     
     # admin
-
     path("admin/learners/", AdminLearnerListCreateView.as_view(), name="admin-learner-list-create"),
     path("admin/learners/<int:pk>/", AdminLearnerRetrieveUpdateDeleteView.as_view(), name="admin-learner-detail"),
 
     path('admin/mentors/', AdminMentorListCreateView.as_view(), name='admin-mentor-list-create'),
     path('admin/mentors/<int:pk>/', AdminMentorRetrieveUpdateDeleteView.as_view(), name='admin-mentor-detail'),
-
 ]
  

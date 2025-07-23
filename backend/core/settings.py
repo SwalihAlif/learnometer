@@ -74,7 +74,7 @@ REST_FRAMEWORK = {
 
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,  # You can adjust this number as needed
+    'PAGE_SIZE': 10,  #  can adjust this number as needed
 }
 
 

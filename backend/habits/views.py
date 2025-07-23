@@ -1,10 +1,13 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from .models import Habit, HabitProgress
 from .serializers import HabitSerializer, HabitProgressSerializer
 from django.utils import timezone
+from django.db.models import Q, Count
+from django.db import models
 
 class HabitListCreateView(generics.ListCreateAPIView):
     serializer_class = HabitSerializer
@@ -39,3 +42,14 @@ class MarkHabitDayCompleteView(APIView):
         progress.completed_at = timezone.now()
         progress.save()
         return Response({'status': 'completed'}, status=status.HTTP_200_OK)
+    
+class CompletedHabitsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        habits = Habit.objects.filter(learner=request.user).annotate(
+            completed_days=Count('progress', filter=Q(progress__is_completed=True))
+        ).filter(completed_days=models.F('total_days'))
+
+        serializer = HabitSerializer(habits, many=True)
+        return Response(serializer.data)

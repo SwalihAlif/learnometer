@@ -72,6 +72,7 @@ import VerifyOTP from "./components/auth/VerifyOTP";
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 import LearnerPremiumPage from './pages/learner/LearnerPremiumPage';
+import ProtectedRoute from './components/common/ProtectedRoute';
 
 
 export default function App() {

@@ -5,7 +5,7 @@ import AddHabitModal from "../../components/habits/AddHabitModal";
 import api from "../../api/habitService";
 
 function HabitTracker() {
-    const [showModal, setShowModal] = useState(false);
+    const [showModal, setShowModal] = useState(false); 
     const [refresh, setRefresh] = useState(false);
     const [habitCount, setHabitCount] = useState(0);
 
@@ -57,6 +57,7 @@ function HabitTracker() {
                     onHabitAdded={handleHabitAdded}
                 />
             )}
+
         </div>
     );
 }

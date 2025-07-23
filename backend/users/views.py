@@ -28,11 +28,11 @@ import logging
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.utils import timezone
 from datetime import timedelta
-from django.conf import settings
+from django.conf import settings    
 from rest_framework.response import Response
-from django.contrib.auth import login # Import Django's login function
+from django.contrib.auth import login 
 
-logger = logging.getLogger("users") # Use your existing logger setup
+logger = logging.getLogger("users") 
 
 class CookieTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
@@ -44,11 +44,10 @@ class CookieTokenObtainPairView(TokenObtainPairView):
         # Get the authenticated user from the serializer's validated data
         user = serializer.user # SimpleJWT's serializer makes the user available here
 
-        # --- CRITICAL FIX: Log the user into a Django session ---
+  
         # This will set the 'sessionid' cookie which AuthMiddlewareStack expects
         login(request, user)
         logger.info(f"User {user.email} successfully logged in and session established.")
-        # --- END CRITICAL FIX ---
 
         response = super().post(request, *args, **kwargs) # This generates the tokens and data
 
@@ -62,7 +61,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             response.data.pop("access", None)
             response.data.pop("refresh", None)
 
-            # Set HttpOnly cookies (as you already do)
+            # Set HttpOnly cookies 
             response.set_cookie(
                 key="access_token",
                 value=access_token,
