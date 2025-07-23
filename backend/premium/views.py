@@ -43,7 +43,7 @@ class CreatePremiumCheckoutSessionView(APIView):
             if not stripe_account.stripe_account_id:
                 account = stripe.Account.create(
                     type="express",
-                    country="US",  # Ensure USD compatibility
+                    country="US",  
                     email=user.email,
                     capabilities={"transfers": {"requested": True}},
                 )
@@ -99,7 +99,7 @@ class CreatePremiumCheckoutSessionView(APIView):
                 "mode": 'payment',
                 "line_items": [{
                     'price_data': {
-                        'currency': 'usd',
+                        'currency': 'inr',
                         'unit_amount': int(settings.PREMIUM_PRICE * 100),  # Always cast to int for Stripe
                         'product_data': {
                             'name': "Learner Premium Subscription"
@@ -149,14 +149,14 @@ class CreatePremiumCheckoutSessionView(APIView):
 # ----------------------------
 # Learner Premium Success webhook view
 # ----------------------------
-from adminpanel.models import AdminNotification
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LearnerPremiumWebhookView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    def post(self, request):
+    def post(self, request):    
         payload = request.body
         sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
         webhook_secret = settings.STRIPE_LEARNER_PRIMIUM_WEBHOOK_SECRET
@@ -182,10 +182,6 @@ class LearnerPremiumWebhookView(APIView):
                 subscription.save()
 
                 logger.info(f"Subscription activated for user ID: {user_id}")
-                AdminNotification.objects.create(
-                    message=f"{subscription.user.email} purchased Learner Premium Subscription."
-                )
-
                 if referral_code_used:
                     try:
                         referrer_entry = ReferralCode.objects.get(code=referral_code_used)
@@ -293,7 +289,7 @@ class LearnerReferralPayoutView(APIView):
             # ✅ Transfer from platform to learner's connected account
             transfer = stripe.Transfer.create(
                 amount=int(stripe_account.wallet_balance * 100),  # Convert dollars to cents
-                currency="usd",
+                currency="inr",
                 destination=stripe_account.stripe_account_id,
                 description="Learner referral wallet withdrawal payout"
             )
