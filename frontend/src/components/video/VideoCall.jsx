@@ -32,7 +32,7 @@ export default function VideoCall({ role = "mentor" }) {
     const { sessionId } = useParams();
     const isMentor = role === "mentor";
 
-    // ✅ Tailwind theme setup
+    // Tailwind theme setup
     const theme = {
         containerBg: isMentor ? "bg-emerald-50" : "bg-gray-50",
         headerText: isMentor ? "text-emerald-900" : "text-indigo-900",
@@ -46,13 +46,13 @@ export default function VideoCall({ role = "mentor" }) {
         borderColor: isMentor ? "border-emerald-700" : "border-indigo-600",
     };
 
-    // ✅ Create and return configured peer connection
+    // Create and return configured peer connection
     const createPeerConnection = () => {
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
 
-        // ✅ Send ICE candidates to peer via WebSocket
+        // Send ICE candidates to peer via WebSocket
         pc.onicecandidate = (event) => {
             if (event.candidate && socketRef.current?.readyState === WebSocket.OPEN) {
                 socketRef.current.send(JSON.stringify({
@@ -62,7 +62,7 @@ export default function VideoCall({ role = "mentor" }) {
             }
         };
 
-        // ✅ Attach remote stream to video
+        // Attach remote stream to video
         pc.ontrack = (event) => {
             console.log("✅ Received remote track:", event.streams[0]);
             if (remoteVideoRef.current) {
@@ -171,6 +171,14 @@ export default function VideoCall({ role = "mentor" }) {
                     console.log("🕓 Remote description not set yet. Queueing ICE candidate.");
                     iceCandidateQueue.push(data.candidate);
                 }
+            }
+
+            if (data.type === "recording-status") {
+                const from = data.sender === "mentor" ? "Mentor" : "Learner";
+                const message = data.isRecording
+                    ? `📹 ${from} started recording`
+                    : `🛑 ${from} stopped recording`;
+                toast(message);
             }
         };
 
@@ -330,6 +338,12 @@ export default function VideoCall({ role = "mentor" }) {
         mediaRecorderRef.current = recorder;
         setIsRecording(true);
         toast("🔴 Recording started");
+
+        socketRef.current?.send(JSON.stringify({
+        type: "recording-status",
+        isRecording: true,
+        sender: role,
+    }));
     };
 
     const stopRecording = () => {
@@ -337,6 +351,12 @@ export default function VideoCall({ role = "mentor" }) {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
             toast("🟢 Recording stopped");
+
+            socketRef.current?.send(JSON.stringify({
+            type: "recording-status",
+            isRecording: false,
+            sender: role,
+        }));
         }
     };
 
