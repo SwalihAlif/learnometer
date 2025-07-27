@@ -9,7 +9,8 @@ from .views import (
     FeedbackUploadAPIView, 
     FeedbackBySessionAPIView, FeedbackRetrieveAPIView,
     CheckingUploadView,
-    MentorWalletView, MentorPayoutRequestView
+    MentorWalletView, MentorPayoutRequestView,
+    StripeWebhookView,
 )
 from .views import handle_mentor_session_booking, capture_mentor_session_payment
 
@@ -29,6 +30,7 @@ urlpatterns = [
     path('book-session/', handle_mentor_session_booking, name='book-mentor-session'),
     path('capture-session-payment/<int:booking_id>/', capture_mentor_session_payment, name='capture-mentor-session-payment'),
 
+    path('stripe/webhook/', StripeWebhookView.as_view(), name='stripe_webhook'),
 
 
     path("reviews/", ReviewCreateAPIView.as_view(), name="review-create"),

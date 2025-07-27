@@ -42,7 +42,8 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 import json
-
+from .models import StripeAccount
+from premium.models import LearnerPayout, LearnerPremiumSubscription, ReferralCode, ReferralEarning
 
 logger = logging.getLogger(__name__)
 
@@ -514,37 +515,213 @@ class BeginPayoutOnboarding(APIView):
 
 
 # ----------------------------
-# Stripe webhook endpoint
+# Stripe webhook endpoint (all logics includes)
 # ----------------------------
 
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
-    event = None
+import stripe
+import logging
+from decimal import Decimal
+from django.core.exceptions import MultipleObjectsReturned
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.http import HttpResponse
+
+# Assuming these are your models
+from .models import SessionBooking # Assuming PaymentAccount is the model for StripeAccount
+
+logger = logging.getLogger(__name__)
+
+# It's good practice to have handlers as separate functions for readability
+def handle_payment_intent_succeeded(intent_data):
+    """Handles the 'payment_intent.succeeded' event."""
+    pi_id = intent_data['id']
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-        )
-    except Exception as e:
-        return HttpResponse(status=400)
+        booking = SessionBooking.objects.get(stripe_payment_intent_id=pi_id)
+        booking.status = 'confirmed'
+        booking.save()
+        logger.info(f"SessionBooking {booking.id} confirmed for PaymentIntent ID: {pi_id}")
+    except SessionBooking.DoesNotExist:
+        logger.warning(f"No SessionBooking found for PaymentIntent ID: {pi_id}")
+        pass # Or handle if this is an unexpected PI
 
-    # PaymentIntent succeeded (session booking payment completed)
-    if event['type'] == 'payment_intent.succeeded':
-        intent = event['data']['object']
-        pi_id = intent['id']
+def handle_checkout_session_completed(session_data):
+    """Handles the 'checkout.session.completed' event for premium subscriptions."""
+    user_id_str = session_data['metadata'].get("user_id")
+    referral_code_used = session_data['metadata'].get("referral_code_used", "")
+    stripe_subscription_id = session_data.get("subscription", "") # This will be the Stripe Subscription ID
+    payment_intent_id = session_data.get("payment_intent", "") # Might be null for subscriptions
+
+    logger.info(f"Webhook - handle_checkout_session_completed: Starting for user_id_str={user_id_str}, referral_code_used={referral_code_used}")
+    logger.debug(f"Webhook - Full session_data: {session_data}")
+
+    if not user_id_str:
+        logger.error(f"Webhook - Missing 'user_id' in metadata for checkout.session.completed event. Session ID: {session_data.get('id')}")
+        return
+
+    try:
+        user_id = int(user_id_str)
+        # Attempt to get the subscription. Using filter().first() is safer if duplicates might exist.
+        # However, if 'get' is expected to work and we want to catch MultipleObjectsReturned explicitly:
+        subscription = LearnerPremiumSubscription.objects.get(user__id=user_id)
+        logger.info(f"Webhook - Found subscription for user {user_id}. Current isActive: {subscription.is_active}")
+
+        subscription.is_active = True # <-- Setting to True here
+        subscription.stripe_subscription_id = stripe_subscription_id
+        subscription.save() # <-- Saving the change
+        logger.info(f"Webhook - Learner subscription ACTIVATED for user ID: {user_id}. New isActive: {subscription.is_active}")
+
+    except LearnerPremiumSubscription.DoesNotExist:
+        logger.warning(f"Webhook - No LearnerPremiumSubscription found for user ID: {user_id}. Cannot activate subscription.")
+        return # Exit if subscription not found
+    except MultipleObjectsReturned: # <--- CRITICAL: ADDED THIS HANDLER
+        logger.error(f"Webhook - Multiple LearnerPremiumSubscription objects found for user ID: {user_id}. This is an inconsistent state. Please investigate database.")
+        # Decide how to proceed:
+        # 1. Log and exit (current behavior) - requires manual cleanup of duplicates.
+        # 2. Try to pick one (e.g., the latest):
+        #    subscription = LearnerPremiumSubscription.objects.filter(user__id=user_id).order_by('-id').first()
+        #    if subscription:
+        #        subscription.is_active = True
+        #        subscription.stripe_subscription_id = stripe_subscription_id
+        #        subscription.save()
+        #        logger.info(f"Webhook - (Resolved Duplicate) Learner subscription ACTIVATED for user ID: {user_id}.")
+        #    else:
+        #        logger.error(f"Webhook - Could not find a single subscription after filtering for user ID: {user_id}.")
+        return # Important to return to avoid a 500 error to Stripe for this webhook
+
+    except ValueError:
+        logger.error(f"Webhook - Invalid 'user_id' in metadata (not an integer): {user_id_str}. Session ID: {session_data.get('id')}")
+        return
+    except Exception as e: # Catch any other unexpected errors during subscription activation
+        logger.exception(f"Webhook - Unexpected error during subscription activation for user ID: {user_id}: {e}")
+        return
+
+    # --- Referral Code Handling (remains largely same) ---
+    if referral_code_used:
         try:
-            booking = SessionBooking.objects.get(stripe_payment_intent_id=pi_id)
-            booking.status = 'confirmed'
-            booking.save()
-        except SessionBooking.DoesNotExist:
-            pass
+            referrer_entry = ReferralCode.objects.get(code=referral_code_used)
+            referrer = referrer_entry.user
 
- 
+            # Ensure referrer is not the user themselves and has an active premium subscription
+            if referrer.id != user_id and \
+               hasattr(referrer, 'premium_subscription') and \
+               referrer.premium_subscription.is_active:
 
-    # Add more event handlers as needed
+                logger.info(f"Webhook - Valid referral by {referrer.email} for user ID: {user_id}")
+                earning_amount = settings.PREMIUM_PRICE * Decimal("0.30")
 
-    return HttpResponse(status=200)
+                ReferralEarning.objects.create(
+                    referrer=referrer,
+                    referred_user_id=user_id,
+                    amount=earning_amount,
+                    stripe_transfer_id=payment_intent_id # Or consider using subscription ID if transfer is tied to it
+                )
+
+                referrer_payment_account, created = StripeAccount.objects.get_or_create(user=referrer, platform='stripe', account_type="learner")
+                referrer_payment_account.wallet_balance += earning_amount
+                referrer_payment_account.save()
+                logger.info(f"Webhook - Wallet balance updated for referrer {referrer.email}: {referrer_payment_account.wallet_balance}")
+            else:
+                logger.warning(f"Webhook - Referral invalid or inactive referrer for user {user_id}: {referrer.email}")
+        except ReferralCode.DoesNotExist:
+            logger.warning(f"Webhook - Referral code does not exist: {referral_code_used} for user {user_id}")
+        except StripeAccount.DoesNotExist: # If referrer somehow doesn't have a StripeAccount
+             logger.warning(f"Webhook - Referrer {referrer.email} does not have a StripeAccount for earnings.")
+        except Exception as e:
+            logger.exception(f"Webhook - Error processing referral record for user {user_id}: {e}")
+
+
+
+def handle_account_updated(account_data):
+    """
+    Handles the 'account.updated' event for connected accounts (e.g., mentors).
+    Updates the local PaymentAccount model's setup_complete and onboarding_complete status.
+    """
+    stripe_account_id = account_data.get("id")
+    capabilities = account_data.get("capabilities", {})
+    details_submitted = account_data.get("details_submitted", False)
+    payouts_enabled = account_data.get("payouts_enabled", False)
+
+    logger.info(f"Stripe account updated webhook received for ID: {stripe_account_id}")
+    logger.info(f"Details submitted: {details_submitted}, Payouts enabled: {payouts_enabled}")
+    logger.info(f"Capabilities: {capabilities}")
+
+
+    try:
+        # Assuming you store the stripe_account_id in your PaymentAccount model
+        account = StripeAccount.objects.get(stripe_account_id=stripe_account_id, platform='stripe')
+
+        # Check 'transfers' capability for onboarding completion
+        transfers_active = capabilities.get("transfers", {}).get("status") == "active"
+        card_payments_active = capabilities.get("card_payments", {}).get("status") == "active"
+
+        # Stripe's definition of "onboarding complete" generally means the account is fully set up
+        # to receive transfers/payouts. This is usually reflected by details_submitted and
+        # the relevant capability being 'active'.
+        account.setup_complete = details_submitted and payouts_enabled
+        account.onboarding_complete = transfers_active and details_submitted # Often details_submitted is key
+
+        account.save()
+        logger.info(f"Updated PaymentAccount for user {account.user.email}. Setup complete: {account.setup_complete}, Onboarding complete: {account.onboarding_complete}")
+
+    except StripeAccount.DoesNotExist:
+        logger.warning(f"No PaymentAccount found for Stripe account ID: {stripe_account_id}. Cannot update local record.")
+    except Exception as e:
+        logger.exception(f"Error handling 'account.updated' webhook for ID {stripe_account_id}: {e}")
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StripeWebhookView(APIView):
+    authentication_classes = [] # No authentication for webhooks
+    permission_classes = [] # No permissions for webhooks
+
+    def post(self, request, *args, **kwargs):
+        payload = request.body
+        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+        webhook_secret = settings.STRIPE_WEBHOOK_SECRET # Make sure this is your production webhook secret
+
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, webhook_secret
+            )
+            logger.info(f"Stripe webhook event received: {event['type']} (ID: {event.id})")
+        except (ValueError, stripe.error.SignatureVerificationError) as e:
+            # Invalid payload or signature
+            logger.error(f"Stripe webhook signature verification failed: {e}")
+            return Response(status=400)
+        except Exception as e:
+            # Other errors during event construction
+            logger.exception(f"Error constructing Stripe webhook event: {e}")
+            return Response(status=400)
+
+        # Route the event to the appropriate handler function
+        try:
+            event_type = event['type']
+            event_data_object = event['data']['object']
+
+            if event_type == 'payment_intent.succeeded':
+                handle_payment_intent_succeeded(event_data_object)
+            elif event_type == 'checkout.session.completed':
+                handle_checkout_session_completed(event_data_object)
+            elif event_type == 'account.updated':
+                handle_account_updated(event_data_object)
+            elif event_type == 'account.application.authorized':
+                # This is likely for OAuth integrations, if you have any
+                logger.info(f"Unhandled event type 'account.application.authorized' received: {event['id']}")
+                # handle_account_authorized(event_data_object) # Uncomment and implement if needed
+            # Add more event types here as your Stripe integration grows
+            else:
+                logger.info(f"Unhandled Stripe event type received: {event_type} (ID: {event.id})")
+
+        except Exception as e:
+            logger.exception(f"Error processing Stripe webhook event {event['type']} (ID: {event.id}): {e}")
+            # It's important to return 200 even on internal errors to prevent Stripe from retrying
+            # indefinitely, but log the error so you can investigate.
+            return Response(status=200)
+
+        # Always return a 200 OK to Stripe
+        return Response(status=200)
 # ----------------------------
 # Learner creating review after session
 # ----------------------------

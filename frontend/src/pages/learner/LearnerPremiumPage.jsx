@@ -14,7 +14,9 @@ export default function LearnerPremiumPage() {
       try {
         const res = await axiosInstance.get("premium/learner/premium/status/");
         setIsActive(res.data.is_active);
+        console.log("is active: ", res.data.is_active)
         setReferralCode(res.data.referral_code);
+        console.log("Referral code: ", res.data.referral_code)
       } catch (err) {
         console.error(err);
 
