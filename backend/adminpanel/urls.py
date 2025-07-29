@@ -20,6 +20,8 @@ from .views import (
     AdminNotificationsListView, 
     AdminNotificationMarkReadView,
     random_daily_quote,
+    CreateAdminPaymentAccountView,
+    CheckStripeOnboardingStatus,
 
 )
 
@@ -53,6 +55,9 @@ urlpatterns = [
     path("notifications/mark-read/", AdminNotificationMarkReadView.as_view()),
 
     path('learner/motivation/daily-quote/', random_daily_quote),
+
+    path("stripe/create/", CreateAdminPaymentAccountView.as_view(), name="admin-stripe-account-create"),
+    path("stripe/onboarding-status/", CheckStripeOnboardingStatus.as_view(), name="admin-stripe-status"),
 
 
 ]

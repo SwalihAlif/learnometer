@@ -62,6 +62,7 @@ import AdminNotifications from './pages/admin/AdminNotifications';
 import AdminQuotesPage from './pages/admin/AdminQuotes';
 import AdminVideosPage from './pages/admin/AdminVideo';
 import AdminBooksPage from './pages/admin/AdminBook';
+import AdminWallet from './pages/admin/AdminWallet';
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -139,6 +140,7 @@ export default function App() {
               <Route path="quotes" element={<AdminQuotesPage />} />
               <Route path="videos" element={<AdminVideosPage />} />
               <Route path="books" element={<AdminBooksPage />} />
+              <Route path="wallet" element={<AdminWallet />} />
             </Route>
 
             {/* Auth Routes */}

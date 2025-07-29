@@ -32,6 +32,7 @@ const AdminSidebar = () => {
     { name: 'Motivation Books', icon: Book, path: '/admin/books' },
     { name: 'Motivation Videos', icon: Video, path: '/admin/videos' },
     { name: 'Habit Tracker', icon: Target, path: '/admin/habits' },
+    { name: 'Wallet', icon: Target, path: '/admin/wallet' },
     { name: 'Reports & CMS', icon: BarChart3, path: '/admin/reports' }
   ];
 

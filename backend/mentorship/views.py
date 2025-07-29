@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 import stripe.error
 from users.models import UserProfile
 from .models import MentorAvailability, SessionBooking, Review, Feedback, StripeAccount
+from premium.models import Wallet
 from .serializers import (
     MentorPublicProfileSerializer,
     MentorAvailabilitySerializer,
@@ -128,7 +129,7 @@ def handle_mentor_session_booking(request):
         logger.info(f"Mentor found: {mentor.email}")
     except User.DoesNotExist:
         return Response({'error': 'Mentor not found.'}, status=404)
-
+    
     # UPDATED: Automatically create StripeAccount if missing
     mentor_account, created = StripeAccount.objects.get_or_create(
         user=mentor,
@@ -612,17 +613,32 @@ def handle_checkout_session_completed(session_data):
                 logger.info(f"Webhook - Valid referral by {referrer.email} for user ID: {user_id}")
                 earning_amount = settings.PREMIUM_PRICE * Decimal("0.30")
 
-                ReferralEarning.objects.create(
+                referral_earning_instance = ReferralEarning.objects.create(
                     referrer=referrer,
                     referred_user_id=user_id,
                     amount=earning_amount,
                     stripe_transfer_id=payment_intent_id # Or consider using subscription ID if transfer is tied to it
                 )
 
-                referrer_payment_account, created = StripeAccount.objects.get_or_create(user=referrer, platform='stripe', account_type="learner")
-                referrer_payment_account.wallet_balance += earning_amount
-                referrer_payment_account.save()
-                logger.info(f"Webhook - Wallet balance updated for referrer {referrer.email}: {referrer_payment_account.wallet_balance}")
+               # --- NEW WALLET HANDLING ---
+                # 1. Get or create the referrer's Wallet object
+                #    Assuming you want an 'earnings' wallet for referrers
+                referrer_wallet, created_wallet = Wallet.objects.get_or_create(
+                    user=referrer,
+                    wallet_type="earnings" # Use a specific wallet type for referral earnings
+                )
+                if created_wallet:
+                    logger.info(f"Webhook - Created new '{referrer_wallet.wallet_type}' wallet for referrer: {referrer.email}")
+
+                # 2. Add funds to the wallet using the Wallet model's method
+                referrer_wallet.add_funds(
+                    amount=earning_amount,
+                    transaction_type='credit_referral', # Use the defined transaction type
+                    source_id=referral_earning_instance.id, # Link to the specific ReferralEarning record
+                    description=f"Referral bonus for subscription purchase by user {user_id}"
+                )
+                logger.info(f"Webhook - Wallet balance updated for referrer {referrer.email}: {referrer_wallet.balance}")
+
             else:
                 logger.warning(f"Webhook - Referral invalid or inactive referrer for user {user_id}: {referrer.email}")
         except ReferralCode.DoesNotExist:
@@ -654,7 +670,7 @@ def handle_account_updated(account_data):
         account = StripeAccount.objects.get(stripe_account_id=stripe_account_id, platform='stripe')
 
         # Check 'transfers' capability for onboarding completion
-        transfers_active = capabilities.get("transfers", {}).get("status") == "active"
+        transfers_active = capabilities.get("transfers") == "active"
         card_payments_active = capabilities.get("card_payments", {}).get("status") == "active"
 
         # Stripe's definition of "onboarding complete" generally means the account is fully set up

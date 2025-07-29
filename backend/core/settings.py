@@ -261,6 +261,7 @@ STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY = config("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET")
 PREMIUM_PRICE = Decimal("1000.00") 
+PLATFORM_OWNER_EMAIL="admin@gmail.com"
 
 # added for success and cancel page of the learner subscription
 FRONTEND_URL = "http://localhost:5173"

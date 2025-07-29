@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from cloudinary.models import CloudinaryField
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -93,11 +94,16 @@ class StripeAccount(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='stripe_account')
     stripe_account_id = models.CharField(max_length=255)
     onboarding_complete = models.BooleanField(default=False)
+    platform = models.CharField(max_length=50, default='stripe')
     account_type = models.CharField(max_length=20, choices=(
         ("mentor", "Mentor"),
         ("learner", "Learner"),
         ("admin", "Admin"),
     ))
+    setup_complete = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
     wallet_balance = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -106,7 +112,11 @@ class StripeAccount(models.Model):
     )
 
     def __str__(self):
-        return f"{self.user.email} - {self.account_type} - {self.stripe_account_id}"
+        return f"{self.user.email} - Stripe Account ({self.account_type}): {self.stripe_account_id or 'N/A'}"
+
+    class Meta:
+        unique_together = ('user', 'platform', 'account_type')
+
 
 
 class MentorPayout(models.Model):
