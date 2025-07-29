@@ -82,7 +82,7 @@ return (
         <FaWallet className="text-yellow-400 text-3xl" />
         <h2 className="text-2xl font-bold">Admin Wallet</h2>
       </div>
-
+  
       <div className="text-center">
         <p className="text-sm text-gray-400 mb-1">Total Wallet Balance</p>
         <h3 className="text-4xl font-bold text-green-400">${parseFloat(walletBalance).toFixed(2)}</h3>
