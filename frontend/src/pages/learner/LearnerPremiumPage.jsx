@@ -7,6 +7,8 @@ export default function LearnerPremiumPage() {
   const [isActive, setIsActive] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [inputReferralCode, setInputReferralCode] = useState("");
+  const [isStripeOnboarded, setIsStripeOnboarded] = useState(false);
+  
 
 
   useEffect(() => {
@@ -24,6 +26,39 @@ export default function LearnerPremiumPage() {
     };
     fetchStatus();
   }, []);
+
+  useEffect(() => {
+    const fetchStripeStatus = async () => {
+      try {
+        const response = await axiosInstance.get("premium/learner/stripe/status/");
+        console.log("Stripe status: ", response.data)
+        setIsStripeOnboarded(response.data.onboarding_complete);
+
+      } catch (err) {
+        console.error("Error in Stripe status fetching: ", err)
+      }
+
+    };
+    fetchStripeStatus();
+  })
+
+const handleCreateAccount = async () => {
+  try {
+    const response = await axiosInstance.post('premium/learner/stripe/create/');
+    const data = response.data;
+
+    if (data.onboarding_required && data.onboarding_url) {
+      // Redirect to Stripe onboarding link
+      window.location.href = data.onboarding_url;
+    } else {
+      // Onboarding already completed
+      alert('Stripe account already set up and onboarded.');
+    }
+  } catch (err) {
+    console.error('Failed to create Stripe account:', err);
+    alert(err.response?.data?.error || 'Something went wrong. Try again later.');
+  }
+};
 
 const handleGetPremium = async () => {
   setLoading(true);
@@ -63,6 +98,23 @@ const handleGetPremium = async () => {
       </div>
     );
   }
+
+if (!isStripeOnboarded) {
+  return (
+    <div className="p-4 bg-white rounded shadow text-center">
+      <p className="mb-4 text-lg font-medium text-gray-700">
+        🎉 Subscribe to premium and start earning! You’ll get <span className="font-bold">30%</span> from every referral using your code.
+      </p>
+      <button
+        onClick={handleCreateAccount}
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Create Payment Account
+      </button>
+    </div>
+  );
+}
+
 
   return (
     <div className="max-w-xl mx-auto p-6 text-center">

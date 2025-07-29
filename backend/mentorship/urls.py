@@ -12,6 +12,7 @@ from .views import (
     MentorWalletView, MentorPayoutRequestView,
     StripeWebhookView,
     CreateMentorPaymentAccountView, 
+    CheckMentorStripeOnboardingStatus,
 )
 from .views import handle_mentor_session_booking, capture_mentor_session_payment
 
@@ -33,6 +34,7 @@ urlpatterns = [
 
     path('stripe/webhook/', StripeWebhookView.as_view(), name='stripe_webhook'),
     path('mentor/stripe/create/', CreateMentorPaymentAccountView.as_view(), name='mentor-stripe-create'),
+    path('mentor/stripe/status/', CheckMentorStripeOnboardingStatus.as_view(), name='mentor-stripe-status'),
 
 
     path("reviews/", ReviewCreateAPIView.as_view(), name="review-create"),

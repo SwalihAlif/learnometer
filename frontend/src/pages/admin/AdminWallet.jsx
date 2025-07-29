@@ -7,7 +7,7 @@ import { FaWallet } from 'react-icons/fa';
 const AdminWallet = () => {
 
       const [walletBalance, setWalletBalance] = useState(523.75);
-  const [isStripeOnboarded, setIsStripeOnboarded] = useState(false);
+  const [isStripeOnboarded, setIsStripeOnboarded] = useState(false); 
 
   const withdrawals = [
   { id: 1, amount: 50.0, status: 'Success', date: '2025-07-28' },

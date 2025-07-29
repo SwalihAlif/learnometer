@@ -6,6 +6,8 @@ from .views import (
     LearnerReferralEarningsView,
     LearnerReferralPayoutView,
     WalletAPIView,
+    CreateLearnerPaymentAccountView,
+    CheckLearnerStripeOnboardingStatus,
 )
 
 urlpatterns = [
@@ -14,5 +16,7 @@ urlpatterns = [
     path("learner/earnings/", LearnerReferralEarningsView.as_view(), name="learner-earnings"),
     path("learner/payout/", LearnerReferralPayoutView.as_view(), name="learner-payout"),
     path("wallet/", WalletAPIView.as_view(), name="user-wallet"),
+    path("learner/stripe/create/", CreateLearnerPaymentAccountView.as_view(), name="create-learner-stripe"),
+    path("learner/stripe/status/", CheckLearnerStripeOnboardingStatus.as_view(), name="learner-stripe-status"),
 
 ]

@@ -24,7 +24,7 @@ export default function MentorEarningsPage() {
 
   const fetchOnboardingStatus = async () => {
     try {
-      const response = await axiosInstance.get('adminpanel/stripe/onboarding-status/');
+      const response = await axiosInstance.get('mentorship/mentor/stripe/status/');
       setIsStripeOnboarded(response.data.onboarding_complete);
     } catch (err) {
       console.error('Failed to fetch onboarding status:', err);

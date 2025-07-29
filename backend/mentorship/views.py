@@ -133,7 +133,10 @@ class CheckMentorStripeOnboardingStatus(APIView):
     def get(self, request):
         user = request.user
         try:
-            stripe_account = StripeAccount.objects.get(user=user)
+            stripe_account = StripeAccount.objects.filter(user=user).first()
+            if not stripe_account:
+                return Response({'onboarding_complete': False, 'message': 'Stripe account not found'}, status=200)
+
             account = stripe.Account.retrieve(stripe_account.stripe_account_id)
             onboarding_complete = account.capabilities.get("transfers") == "active"
             return Response({'onboarding_complete': onboarding_complete})

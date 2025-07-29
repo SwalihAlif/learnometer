@@ -19,6 +19,68 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 logger = logging.getLogger(__name__)
 
 # ----------------------------
+# Learner create Stripe account
+# ----------------------------
+class CreateLearnerPaymentAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        try:
+            # Ensure StripeAccount exists with learner account_type
+            stripe_account, _ = StripeAccount.objects.get_or_create(
+                user=user,
+                account_type="learner",
+                defaults={
+                    "stripe_account_id": "",
+                    "setup_complete": False,
+                    "onboarding_complete": False,
+                    "is_active": True,
+                }
+            )
+
+            if not stripe_account.stripe_account_id:
+                account = stripe.Account.create(
+                    type="express",
+                    country="US",  
+                    email=user.email,
+                    capabilities={"transfers": {"requested": True}},
+                )
+                stripe_account.stripe_account_id = account.id
+                stripe_account.save()
+                logger.info(f"Stripe Connect account created for learner {user.email}")
+
+                # Sync onboarding status again just to be safe
+            account = stripe.Account.retrieve(stripe_account.stripe_account_id)
+            stripe_account.onboarding_complete = (account.capabilities.get("transfers") == "active")
+            stripe_account.save()
+
+            if not stripe_account.onboarding_complete:
+                onboarding_link = stripe.AccountLink.create(
+                    account=stripe_account.stripe_account_id,
+                    refresh_url=f"{settings.FRONTEND_URL}/stripe/onboarding/refresh/",
+                    return_url=f"{settings.FRONTEND_URL}/learner/premium/",
+                    type="account_onboarding",
+                )
+                return Response({
+                    "onboarding_required": True,
+                    "onboarding_url": onboarding_link.url
+                })
+
+            return Response({
+                "onboarding_required": False,
+                "message": "Stripe onboarding already completed"
+            })
+
+
+
+        except Exception as e:
+            logger.exception("Error during admin stripe creation")
+            return Response({"error": str(e)}, status=500)
+        
+
+# ----------------------------
 # Learner Premium Checkout view
 # ----------------------------
 class CreatePremiumCheckoutSessionView(APIView):
@@ -38,7 +100,9 @@ class CreatePremiumCheckoutSessionView(APIView):
                 account_type="learner",
                 defaults={
                     "stripe_account_id": "",
-                    "onboarding_complete": False
+                    "setup_complete": False,
+                    "onboarding_complete": False,
+                    "is_active": True,
                 }
             )
 
@@ -143,6 +207,22 @@ class CreatePremiumCheckoutSessionView(APIView):
             logger.exception("Error during premium checkout session creation")
             return Response({"error": str(e)}, status=500)
 
+# ----------------------------
+# Mentor Stripe account status
+# ----------------------------
+class CheckLearnerStripeOnboardingStatus(APIView):
+    def get(self, request):
+        user = request.user
+        try:
+            stripe_account = StripeAccount.objects.filter(user=user).first()
+            if not stripe_account:
+                return Response({'onboarding_complete': False, 'message': 'Stripe account not found'}, status=200)
+
+            account = stripe.Account.retrieve(stripe_account.stripe_account_id)
+            onboarding_complete = account.capabilities.get("transfers") == "active"
+            return Response({'onboarding_complete': onboarding_complete})
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
 # ----------------------------
 # Learner Premium Status view
 # ----------------------------
