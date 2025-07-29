@@ -33,13 +33,18 @@ const PrivateRoute = () => {
       if (!authChecked) {
         setAuthChecked(true); 
       }
-    }, 2000); 
+    }, 5000); 
 
     return () => clearTimeout(timer);
   }, [authChecked]);
 
   if (!authChecked) {
-    return <div className="text-center mt-10 text-gray-500">Checking authentication...</div>;
+    return (
+    <div className="flex justify-center items-center h-screen">
+  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+  <span className="ml-4 text-gray-600">Checking authentication...</span>
+</div>
+)
   }
 
   return isAuthenticated ? <Outlet /> : <Navigate to="/" replace />;

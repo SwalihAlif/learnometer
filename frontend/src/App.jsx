@@ -78,12 +78,12 @@ import PrivateRoute from './components/common/PrivateRoute';
 export default function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      <AuthProvider> {/* ✅ Wrap everything inside */}
+      <AuthProvider> {/* Wrap everything inside */}
         <BrowserRouter>
           <Routes>
             {/* Learner Layout */}
-            <Route element={<PrivateRoute />}>
               <Route path="/learner" element={<LearnerLayout />}>
+            <Route element={<PrivateRoute />}>
                 <Route index element={<LearnerDashboard />} />
                 <Route path="my-courses" element={<LearnerMyCourses />} />
                 <Route path="main-topics/:courseId" element={<MainTopics />} />
@@ -109,6 +109,7 @@ export default function App() {
 
             {/* Mentor Layout */}
             <Route path="/mentor" element={<MentorLayout />}>
+            <Route element={<PrivateRoute />}>
               <Route index element={<MentorDashboard />} />
               <Route path="profile" element={<MentorProfile />} />
               <Route path="manage-availability" element={<ManageAvailability />} />
@@ -119,10 +120,12 @@ export default function App() {
               <Route path="chat/:learnerId" element={<MentorChat />} />
               <Route path="meet/:sessionId" element={<MentorVideoPage />} />
               <Route path="earnings" element={<MentorEarningsPage />} />
+              </Route>
             </Route>
 
             {/* Admin Layout */}
             <Route path="/admin" element={<AdminLayout />}>
+            <Route element={<PrivateRoute />}>
               <Route index element={<AdminDashboard />} />
               <Route path="learners" element={<ManageLearner />} />
               <Route path="mentors" element={<ManageMentors />} />
@@ -141,6 +144,7 @@ export default function App() {
               <Route path="videos" element={<AdminVideosPage />} />
               <Route path="books" element={<AdminBooksPage />} />
               <Route path="wallet" element={<AdminWallet />} />
+              </Route>
             </Route>
 
             {/* Auth Routes */}

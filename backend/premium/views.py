@@ -10,6 +10,8 @@ import logging
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from decimal import Decimal
+from .models import Wallet
+from .serializers import WalletSerializer
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -141,17 +143,6 @@ class CreatePremiumCheckoutSessionView(APIView):
             logger.exception("Error during premium checkout session creation")
             return Response({"error": str(e)}, status=500)
 
-
-
-
-
-
-
-
-
-
-
-
 # ----------------------------
 # Learner Premium Status view
 # ----------------------------
@@ -240,11 +231,6 @@ class LearnerReferralPayoutView(APIView):
             logger.exception("Error during learner payout.")
             return Response({"error": str(e)}, status=500)
 
-
-
-
-
-
 # ----------------------------
 # Learner Referral earnings view
 # ----------------------------
@@ -282,3 +268,13 @@ class LearnerReferralEarningsView(APIView):
             "unpaid_referral_earnings": round(total_earnings, 2)
         })
 
+# ----------------------------
+# User's wallet display
+# ----------------------------
+class WalletAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wallet, created = Wallet.objects.get_or_create(user=request.user, wallet_type='earnings')
+        serializer = WalletSerializer(wallet)
+        return Response(serializer.data)

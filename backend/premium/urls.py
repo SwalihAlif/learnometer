@@ -5,6 +5,7 @@ from .views import (
     LearnerPremiumStatusView,
     LearnerReferralEarningsView,
     LearnerReferralPayoutView,
+    WalletAPIView,
 )
 
 urlpatterns = [
@@ -12,5 +13,6 @@ urlpatterns = [
     path("learner/premium/status/", LearnerPremiumStatusView.as_view(), name="learner-premium-status" ),
     path("learner/earnings/", LearnerReferralEarningsView.as_view(), name="learner-earnings"),
     path("learner/payout/", LearnerReferralPayoutView.as_view(), name="learner-payout"),
+    path("wallet/", WalletAPIView.as_view(), name="user-wallet"),
 
 ]
