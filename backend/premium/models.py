@@ -51,14 +51,22 @@ class LearnerPayout(models.Model):
     
 
 class Wallet(models.Model):
-    """
-    Represents a user's wallet balance.
-    Each user can have multiple wallets (e.g., earnings wallet, bonus wallet)
-    if needed, identified by 'wallet_type'. For now, one main wallet is fine.
-    """
+    WALLET_TYPES = (
+    ('earnings', 'Earnings'),
+    ('bonus', 'Bonus'),
+    ('platform_fees', 'Platform Fees'),
+    ('refunds', 'Refunds'),
+    ('rewards', 'Rewards'),
+    
+)
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="wallets")
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    wallet_type = models.CharField(max_length=50, default='earnings') # e.g., 'earnings', 'bonus', 'platform_fees'
+    wallet_type = models.CharField(
+    max_length=50,
+    choices=WALLET_TYPES,
+    default='earnings'
+)
     currency = models.CharField(max_length=3, default='INR') # Or whatever your primary currency is
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -69,11 +77,10 @@ class Wallet(models.Model):
         unique_together = ('user', 'wallet_type')
 
     def __str__(self):
-        return f"{self.user.email}'s {self.get_wallet_type_display()} Wallet: {self.currency} {self.balance}"
+        return f"{self.user.email}'s Wallet: {self.currency} {self.balance}"
 
     # We might add methods here for safe balance updates
     def add_funds(self, amount, transaction_type, source_id=None, description=""):
-        from . import services # Import inside to avoid circular dependency if services uses Wallet
 
         with transaction.atomic(): 
             self.balance += amount
@@ -97,8 +104,9 @@ class WalletTransaction(models.Model):
         ('credit_referral', 'Referral Credit'),
         ('credit_session_fee', 'Session Fee Credit'),
         ('debit_payout', 'Payout'),
-        ('credit_platform_fee', 'Platform Fee Credit'), # For admin wallet
-        # Add other types as needed
+        ('credit_platform_fee', 'Platform Fee Credit'), 
+        ('credit_premium_subscription', 'Subcription Fee Credit'),
+     
     )
 
     wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name="transactions")

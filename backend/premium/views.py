@@ -271,19 +271,19 @@ class LearnerReferralPayoutView(APIView):
         logger.info(f"Learner {user} requested payout...")
 
         try:
-            # ✅ Fetch user's StripeAccount
+            # Fetch user's StripeAccount
             stripe_account = StripeAccount.objects.get(user=user, account_type='learner')
         except StripeAccount.DoesNotExist:
             logger.error("Stripe account does not exist..")
             return Response({"error": "Stripe account not found."}, status=404)
 
-        # ✅ Check wallet balance from your database
+        # Check wallet balance from your database
         if stripe_account.wallet_balance <= 0:
             logger.warning("Insufficient learner wallet balance..")
             return Response({"error": "Insufficient wallet balance."}, status=400)
 
         try:
-            # ✅ Transfer from platform to learner's connected account
+            # Transfer from platform to learner's connected account
             transfer = stripe.Transfer.create(
                 amount=int(stripe_account.wallet_balance * 100),  # Convert dollars to cents
                 currency="inr",
@@ -291,7 +291,7 @@ class LearnerReferralPayoutView(APIView):
                 description="Learner referral wallet withdrawal payout"
             )
 
-            # ✅ Log payout
+            # Log payout
             LearnerPayout.objects.create(
                 learner=user,
                 amount=stripe_account.wallet_balance,
@@ -299,7 +299,7 @@ class LearnerReferralPayoutView(APIView):
                 status='completed'
             )
 
-            # ✅ Set wallet balance to 0 after payout
+            # Set wallet balance to 0 after payout
             stripe_account.wallet_balance = 0
             stripe_account.save()
 
