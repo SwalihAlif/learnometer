@@ -4,12 +4,14 @@ import {
   createMentorSlot,
   deleteMentorSlot,
 } from '../../api/mentorshipAPI';
+import axiosInstance from '../../axios';
 import { format, isToday, isBefore, parse } from 'date-fns';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 import { showDialog } from '../../redux/slices/confirmDialogSlice';
+import {useNavigate} from 'react-router-dom';
 
 const ManageAvailability = () => {
   const [allSlots, setAllSlots] = useState([]);
@@ -21,9 +23,11 @@ const ManageAvailability = () => {
     session_price: '',
     duration: 30,
   });
+  const [showStripeWarningModal, setShowStripeWarningModal] = useState(false);
+  const [isStripeOnboarded, setIsStripeOnboarded] = useState(false);
 
   const dispatch = useDispatch();
-
+  const navigate = useNavigate();
   const fetchSlots = async () => {
     try {
       const res = await getMentorSlots();
@@ -34,9 +38,22 @@ const ManageAvailability = () => {
     }
   };
 
+    const fetchOnboardingStatus = async () => {
+    try {
+      const response = await axiosInstance.get('mentorship/mentor/stripe/status/');
+      setIsStripeOnboarded(response.data.onboarding_complete);
+    } catch (err) {
+      console.error('Failed to fetch onboarding status:', err);
+    }
+  };
+  
+
   useEffect(() => {
     fetchSlots();
+    fetchOnboardingStatus();
   }, []);
+
+
 
   const formatTo12Hour = (timeStr) => {
     try {
@@ -151,13 +168,20 @@ const ManageAvailability = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setShowModal(true)}
-              className="w-full mt-6 bg-gradient-to-r from-[#0F766E] to-[#064E3B] text-white px-6 py-3 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold text-lg flex items-center justify-center gap-2"
-            >
-              <span className="text-xl">+</span>
-              Add New Time Slot
-            </button>
+<button
+  onClick={() => {
+    if (!isStripeOnboarded) {
+      setShowStripeWarningModal(true);
+    } else {
+      setShowModal(true);
+    }
+  }}
+  className="w-full mt-6 bg-gradient-to-r from-[#0F766E] to-[#064E3B] text-white px-6 py-3 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 font-semibold text-lg flex items-center justify-center gap-2"
+>
+  <span className="text-xl">+</span>
+  Add New Time Slot
+</button>
+
           </div>
 
           {/* Slots Section */}
@@ -217,7 +241,36 @@ const ManageAvailability = () => {
           </div>
         </div>
 
-        {/* Modal */}
+        {showStripeWarningModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-xl w-[90%] max-w-md shadow-xl text-center">
+      <h2 className="text-xl font-semibold mb-4 text-red-600">No Payment Account</h2>
+      <p className="mb-6">
+        You don't have a payment account yet. Please create one to receive payments from learners before creating a time slot.
+      </p>
+      <div className="flex justify-center gap-4">
+        <button
+          onClick={() => {
+            setShowStripeWarningModal(false);
+            navigate('/mentor/earnings');
+          }}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+        >
+          Go to Earnings
+        </button>
+        <button
+          onClick={() => setShowStripeWarningModal(false)}
+          className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+        {/* Slot Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300">

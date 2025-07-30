@@ -15,11 +15,14 @@ from .serializers import (
     FeedbackSerializer
 
 )
+from rest_framework.exceptions import ValidationError
+from django.utils.timezone import now
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from django.conf import settings
 from .models import SessionBooking, StripeAccount
 from .utils import create_stripe_customer, create_stripe_connect_account
+from django.utils import timezone 
 import stripe
 from django.contrib.auth import get_user_model
 from . serializers import StripeAccountSerializer
@@ -172,8 +175,24 @@ class MentorAvailabilityViewSet(viewsets.ModelViewSet):
         # Sort upcoming first
         return qs.order_by('date', 'start_time')
 
+
     def perform_create(self, serializer):
-        serializer.save(mentor=self.request.user)
+        user = self.request.user
+
+        # Ensure only mentors can create availability slots
+        if user.role.name != 'Mentor':
+            raise ValidationError("Only mentors can create availability slots.")
+
+        # Check if Stripe account exists and is fully set up
+        try:
+            stripe_account = user.stripe_account  # via related_name
+            if not (stripe_account.stripe_account_id and stripe_account.setup_complete and stripe_account.is_active):
+                raise ValidationError("You don't have a valid Stripe payment account. Please set it up before creating slots.")
+        except StripeAccount.DoesNotExist:
+            raise ValidationError("You don't have a Stripe payment account. Please set it up before creating slots.")
+
+        # Save if all checks passed
+        serializer.save(mentor=user)
 
 
 # ----------------------------
@@ -208,45 +227,18 @@ def handle_mentor_session_booking(request):
         logger.info(f"Mentor found: {mentor.email}")
     except User.DoesNotExist:
         return Response({'error': 'Mentor not found.'}, status=404)
-    
-    # UPDATED: Automatically create StripeAccount if missing
-    mentor_account, created = StripeAccount.objects.get_or_create(
-        user=mentor,
-        account_type="mentor",
-        defaults={
-            'stripe_account_id': create_stripe_connect_account(mentor, account_type="mentor").stripe_account_id
-        }
-    )
-    if created:
-        logger.info(f"Stripe account automatically created for mentor {mentor.email}")
 
-    # UPDATED: Always retrieve latest account info from Stripe and sync onboarding_complete
     try:
-        account = stripe.Account.retrieve(mentor_account.stripe_account_id)
-        mentor_account.onboarding_complete = (account.capabilities.get("transfers") == "active")  
-        mentor_account.save()  
-    except stripe.error.StripeError as e:
-        logger.error(f"Failed to retrieve Stripe account: {str(e)}")
-        return Response({'error': 'Unable to verify mentor Stripe account.'}, status=400)
+        mentor_account = StripeAccount.objects.get(user=mentor, account_type="mentor")
+    except StripeAccount.DoesNotExist:
+        return Response({'error': 'Mentor is not eligible to receive bookings yet.'}, status=400)
 
-    #  UPDATED: Check onboarding status based on local DB sync value
     if not mentor_account.onboarding_complete:
-        logger.warning(f"Mentor {mentor.email} does not have active transfer capability.")
-        onboarding_link = stripe.AccountLink.create(
-            account=mentor_account.stripe_account_id,
-            refresh_url="http://localhost:8000/stripe/onboarding/refresh/",
-            return_url="http://localhost:8000/dashboard/",
-            type="account_onboarding"
-        )
-        return Response({
-            'error': 'Mentor account is not ready to receive payouts.',
-            'onboarding_url': onboarding_link.url
-        }, status=400)
+        return Response({'error': 'This mentor is currently unavailable for booking. Please try another mentor.'}, status=400)
 
     stripe_customer_id = create_stripe_customer(user)
 
     platform_fee = round(amount * 0.2, 2)
-    mentor_payout = round(amount - platform_fee, 2)
 
     try:
         intent = stripe.PaymentIntent.create(
@@ -263,6 +255,7 @@ def handle_mentor_session_booking(request):
                 'learner_id': user.id,
                 'mentor_id': mentor.id,
                 'purpose': 'mentor_session',
+                'booking_id': None
             }
         )
         logger.info(f"Stripe PaymentIntent created: {intent.id}")
@@ -277,13 +270,18 @@ def handle_mentor_session_booking(request):
         start_time=start_time,
         end_time=end_time,
         amount=amount,
-        platform_fee=platform_fee,
-        mentor_payout=mentor_payout,
-        status=SessionBooking.Status.CONFIRMED,  # ✅ UPDATED: Set status as CONFIRMED by default
-        payment_status=SessionBooking.PaymentStatus.HOLDING,
         stripe_payment_intent_id=intent.id,
+        payment_status=SessionBooking.PaymentStatus.HOLDING,
+        status=SessionBooking.Status.PENDING,
     )
     logger.info(f"Session booking created successfully: ID {booking.id}")
+    try:
+        stripe.PaymentIntent.modify(
+            intent.id,
+            metadata={'booking_id': booking.id}
+        )
+    except stripe.error.StripeError as e:
+        logger.warning(f"Failed to update PaymentIntent {intent.id} metadata with booking_id {booking.id}: {str(e)}")
 
     return Response({
         'clientSecret': intent.client_secret,
@@ -295,63 +293,54 @@ def handle_mentor_session_booking(request):
 # ----------------------------
 # After completion of the session, capturing mentor session payment
 # ----------------------------
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def capture_mentor_session_payment(request, booking_id):
     user = request.user
-    logger.info(f"capturing mentor session paymnent details- user: {user} booking id: {booking_id}")
+    logger.info(f"Mentor session payment capture requested by user: {user.email}, booking ID: {booking_id}")
 
     try:
         booking = SessionBooking.objects.select_related("mentor").get(id=booking_id)
-        
-        if booking.payment_status != SessionBooking.PaymentStatus.HOLDING:
-            logger.info("Booking payment status is not holding.")
-            return Response({'error': 'Payment already captured or not in holding state.'}, status=400)
-        
-        logger.info(f"Checking stripe_payment_intent_id: {booking.stripe_payment_intent_id}")
+
+        if booking.mentor != user:
+            logger.warning(f"Unauthorized capture attempt by {user.email} for booking {booking_id}. Mentor: {booking.mentor.email}")
+            return Response({'error': 'You are not authorized to capture payment for this session.'}, status=403)
+
         if not booking.stripe_payment_intent_id:
-            logger.info(f"Stripe payment intent id: {booking.stripe_payment_intent_id}")
-            return Response({'error': 'No associate payment intent.'}, status=400)
-        
-        #step 1: capture payment through stripe
-        intent = stripe.PaymentIntent.capture(booking.stripe_payment_intent_id)
-        logger.info(f"PaymentIntent {intent.id} captured successfully.")
+            logger.info(f"Booking {booking_id}: No Stripe payment intent ID found.")
+            return Response({'error': 'No associated payment intent.'}, status=400)
 
-        #step 2: Update session booking status
-        booking.status = SessionBooking.Status.COMPLETED
-        booking.payment_status = SessionBooking.PaymentStatus.RELEASED
-        booking.is_payment_captured = True
-        booking.captured_at = timezone.now()
-        booking.save()
+        if booking.is_payment_captured:
+            logger.info(f"Booking {booking_id}: Payment already captured.")
+            return Response({'message': 'Payment for this session has already been captured.'}, status=200)
 
-        #step 3: update mentor wallet balance
+        if booking.payment_status != SessionBooking.PaymentStatus.HOLDING:
+            logger.info(f"Booking {booking_id}: Payment status is not in HOLDING state ({booking.payment_status}).")
+            return Response({'error': f'Payment is not in a capturable state: {booking.get_payment_status_display()}.'}, status=400)
+
         try:
-            mentor_account = StripeAccount.objects.get(user=booking.mentor, account_type="mentor")
-        except StripeAccount.DoesNotExist:
-            logger.error(f"Mentor StripeAccount not found for user {booking.mentor.email}")
-            return Response({'error': 'Mentor payment account not found.'}, status=404)
-        
-        # step 3.1
-        if mentor_account.account_type != "mentor":
-            logger.warning(f"Invalid account type detected for {booking.mentor.email}")
-            return Response({'error': 'Invalid account type.'}, status=400)
-        
-        mentor_account.wallet_balance += booking.mentor_payout
-        mentor_account.save()
+            captured_intent = stripe.PaymentIntent.capture(booking.stripe_payment_intent_id)
+            logger.info(f"Stripe PaymentIntent {booking.stripe_payment_intent_id} captured successfully by API call.")
 
-        return Response({
-            'message': 'Payment captured and mentor wallet updated successfully.',
-            'mentor_wallet_balance': mentor_account.wallet_balance
-        })
-    
+            booking.status = SessionBooking.Status.COMPLETED # Session is completed
+            booking.save() 
+
+            return Response({
+                'message': 'Payment capture initiated successfully. Final status and wallet updates will follow shortly.'
+            })
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error capturing PaymentIntent {booking.stripe_payment_intent_id}: {str(e)}")
+            return Response({'error': f"Payment capture failed at Stripe: {str(e)}"}, status=400)
+
     except SessionBooking.DoesNotExist:
+        logger.error(f"Booking {booking_id} not found.")
         return Response({'error': 'Booking not found.'}, status=404)
-    except stripe.error.StripeError as e:
-        logger.error(f"Stripe capture error: {str(e)}")
-        return Response({'error': str(e)}, status=400)
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        return Response({'error': 'Unexpected error.'}, status=500)
+        logger.exception(f"Unexpected error in capture_mentor_session_payment for booking {booking_id}: {str(e)}")
+        return Response({'error': 'An unexpected error occurred during payment capture.'}, status=500)
         
 # ----------------------------
 # Mentor wallet balance
@@ -609,23 +598,74 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.http import HttpResponse
 
-# Assuming these are your models
-from .models import SessionBooking # Assuming PaymentAccount is the model for StripeAccount
+
+from .models import SessionBooking 
 
 logger = logging.getLogger(__name__)
+from django.db import transaction 
 
-# It's good practice to have handlers as separate functions for readability
 def handle_payment_intent_succeeded(intent_data):
-    """Handles the 'payment_intent.succeeded' event."""
+ 
     pi_id = intent_data['id']
+    amount_received = Decimal(str(intent_data.get('amount_received', 0))) / Decimal("100") 
+
+    logger.info(f"Webhook: Received payment_intent.succeeded for PI: {pi_id}, Amount: {amount_received}")
+
+    booking_id = intent_data['metadata'].get('booking_id')
+    if not booking_id:
+        logger.warning(f"PaymentIntent {pi_id} missing 'booking_id' in metadata. Cannot link to SessionBooking.")
+        return
+
     try:
-        booking = SessionBooking.objects.get(stripe_payment_intent_id=pi_id)
-        booking.status = 'confirmed'
-        booking.save()
-        logger.info(f"SessionBooking {booking.id} confirmed for PaymentIntent ID: {pi_id}")
+
+        with transaction.atomic():
+            booking = SessionBooking.objects.select_for_update().get(id=booking_id, stripe_payment_intent_id=pi_id)
+
+            if booking.is_payment_captured and booking.payment_status == SessionBooking.PaymentStatus.RELEASED:
+                logger.info(f"Booking {booking.id} (PI: {pi_id}) already marked as captured and released. Skipping.")
+                return
+
+            if booking.payment_status not in [SessionBooking.PaymentStatus.HOLDING]:
+                logger.warning(f"Booking {booking.id} (PI: {pi_id}) is in unexpected payment status: {booking.payment_status}. Expected HOLDING. Still processing.")
+
+            booking.status = SessionBooking.Status.COMPLETED 
+            booking.is_payment_captured = True
+            booking.captured_at = timezone.now()
+
+            booking.platform_fee = round(amount_received * Decimal("0.20"), 2)
+            booking.mentor_payout = round(amount_received * Decimal("0.80"), 2)
+            booking.payment_status = SessionBooking.PaymentStatus.RELEASED 
+
+            booking.save()
+            logger.info(f"Booking {booking.id} updated: status={booking.status}, payment_status={booking.payment_status}, captured={booking.is_payment_captured}")
+
+
+            try:
+                platform_user = User.objects.get(email=settings.PLATFORM_OWNER_EMAIL)
+                platform_wallet, _ = Wallet.objects.get_or_create(user=platform_user)
+                platform_wallet.balance += booking.platform_fee
+                platform_wallet.save()
+                logger.info(f"Platform wallet credited with {booking.platform_fee}. New balance: {platform_wallet.balance}")
+            except User.DoesNotExist:
+                logger.error("Platform owner user not found. Check settings.PLATFORM_OWNER_EMAIL.")
+
+            mentor = booking.mentor
+            mentor_wallet, _ = Wallet.objects.get_or_create(user=mentor)
+            mentor_wallet.balance += booking.mentor_payout
+            mentor_wallet.save()
+            logger.info(f"Mentor {mentor.email}'s wallet credited with {booking.mentor_payout}. New balance: {mentor_wallet.balance}")
+
+            logger.info(
+                f"Booking {booking.id} (PI: {pi_id}) successfully processed. "
+                f"Mentor ({mentor.email}) credited: {booking.mentor_payout}, "
+                f"Platform credited: {booking.platform_fee}"
+            )
+
     except SessionBooking.DoesNotExist:
-        logger.warning(f"No SessionBooking found for PaymentIntent ID: {pi_id}")
-        pass # Or handle if this is an unexpected PI
+        logger.warning(f"Webhook: No SessionBooking found for PaymentIntent ID: {pi_id} (Booking ID: {booking_id}).")
+    except Exception as e:
+        logger.exception(f"Webhook: Error handling payment_intent.succeeded for PI {pi_id}: {str(e)}")
+
 
 # def handle_checkout_session_completed(session_data):
 #     """Handles the 'checkout.session.completed' event for premium subscriptions."""
@@ -714,7 +754,7 @@ def handle_payment_intent_succeeded(intent_data):
 
 
 # added for checking the subscription amout is credited to platform owner
-def handle_checkout_session_completed(session_data):
+def handle_checkout_session_completed(session_data): 
     user_id_str = session_data['metadata'].get("user_id")
     referral_code_used = session_data['metadata'].get("referral_code_used", "")
     stripe_subscription_id = session_data.get("subscription", "")
@@ -729,6 +769,12 @@ def handle_checkout_session_completed(session_data):
 
     try:
         user_id = int(user_id_str)
+    except ValueError:
+        logger.error(f"Webhook - Invalid user_id format: {user_id_str}")
+        return
+
+    # Handle subscription activation
+    try:
         subscription = LearnerPremiumSubscription.objects.get(user__id=user_id)
         subscription.is_active = True
         subscription.stripe_subscription_id = stripe_subscription_id
@@ -736,12 +782,8 @@ def handle_checkout_session_completed(session_data):
         logger.info(f"Webhook - Learner subscription ACTIVATED for user ID: {user_id}")
     except LearnerPremiumSubscription.DoesNotExist:
         logger.warning(f"Webhook - No subscription found for user ID: {user_id}")
-        return
     except MultipleObjectsReturned:
         logger.error(f"Webhook - Multiple subscriptions found for user ID: {user_id}")
-        return
-    except ValueError:
-        logger.error(f"Webhook - Invalid user_id format: {user_id_str}")
         return
     except Exception as e:
         logger.exception(f"Webhook - Error activating subscription for user ID: {user_id}: {e}")
@@ -749,59 +791,45 @@ def handle_checkout_session_completed(session_data):
 
     referral_used = False
     earning_amount = Decimal("0.00")
-    # referrral earnigs
+
+    # Process referral earnings
     if referral_code_used:
         try:
             referrer_entry = ReferralCode.objects.get(code=referral_code_used)
             referrer = referrer_entry.user
 
-            if referrer.id != user_id and \
-               hasattr(referrer, 'premium_subscription') and \
-               referrer.premium_subscription.is_active:
-
+            if referrer.id != user_id and getattr(referrer, 'premium_subscription', None) and referrer.premium_subscription.is_active:
                 referral_used = True
                 earning_amount = settings.PREMIUM_PRICE * Decimal("0.30")
 
-                referral_earning_instance = ReferralEarning.objects.create(
+                referral_earning = ReferralEarning.objects.create(
                     referrer=referrer,
                     referred_user_id=user_id,
                     amount=earning_amount,
                     stripe_transfer_id=payment_intent_id
                 )
 
-                referrer_wallet, created_wallet = Wallet.objects.get_or_create(
-                    user=referrer,
-                    wallet_type="earnings"
-                )
-
-                if created_wallet:
-                    logger.info(f"Webhook - Created new earnings wallet for referrer: {referrer.email}")
-
+                referrer_wallet, _ = Wallet.objects.get_or_create(user=referrer, wallet_type="earnings")
                 referrer_wallet.add_funds(
                     amount=earning_amount,
                     transaction_type='credit_referral',
-                    source_id=referral_earning_instance.id,
+                    source_id=referral_earning.id,
                     description=f"Referral bonus for subscription purchase by user {user_id}"
                 )
                 logger.info(f"Webhook - Referrer wallet updated: {referrer_wallet.balance}")
-            else:
-                logger.warning(f"Webhook - Invalid referral or inactive referrer: {referrer.email}")
         except ReferralCode.DoesNotExist:
             logger.warning(f"Webhook - Referral code not found: {referral_code_used}")
-        except StripeAccount.DoesNotExist:
-            logger.warning(f"Webhook - Referrer has no StripeAccount: {referrer.email}")
         except Exception as e:
             logger.exception(f"Webhook - Error processing referral for user {user_id}: {e}")
 
-    # --- Platform Owner Earnings ---
+    # Platform subscription revenue (referral or not)
     try:
-        platform_owner = User.objects.get(email=settings.PLATFORM_OWNER_EMAIL)
-        platform_wallet, _ = Wallet.objects.get_or_create(user=platform_owner, wallet_type='platform_fees')
+        platform_user = User.objects.get(email=settings.PLATFORM_OWNER_EMAIL)
+        platform_wallet, _ = Wallet.objects.get_or_create(user=platform_user, wallet_type='platform_fees')
 
-        if referral_used:
-            platform_earning = settings.PREMIUM_PRICE * Decimal("0.70")
-        else:
-            platform_earning = Decimal(str(settings.PREMIUM_PRICE))
+        platform_earning = (
+            settings.PREMIUM_PRICE * Decimal("0.70") if referral_used else Decimal(str(settings.PREMIUM_PRICE))
+        )
 
         platform_wallet.add_funds(
             amount=platform_earning,
@@ -810,11 +838,149 @@ def handle_checkout_session_completed(session_data):
             description=f"Platform fee for subscription purchased by user {user_id}"
         )
         logger.info(f"Webhook - Platform wallet credited: {platform_wallet.balance}")
-
     except User.DoesNotExist:
         logger.error("Webhook - Platform owner not found. Check PLATFORM_OWNER_EMAIL setting.")
     except Exception as e:
         logger.exception(f"Webhook - Error crediting platform owner's wallet: {e}")
+
+
+
+# def handle_checkout_session_completed(session_data):
+#     user_id_str = session_data['metadata'].get("user_id")
+#     referral_code_used = session_data['metadata'].get("referral_code_used", "")
+#     stripe_subscription_id = session_data.get("subscription", "")
+#     payment_intent_id = session_data.get("payment_intent", "")
+
+#     logger.info(f"Webhook - handle_checkout_session_completed: Starting for user_id_str={user_id_str}, referral_code_used={referral_code_used}")
+#     logger.debug(f"Webhook - Full session_data: {session_data}")
+
+#     if not user_id_str:
+#         logger.error(f"Webhook - Missing 'user_id' in metadata for checkout.session.completed event. Session ID: {session_data.get('id')}")
+#         return
+
+#     try:
+#         user_id = int(user_id_str)
+#         subscription = LearnerPremiumSubscription.objects.get(user__id=user_id)
+#         subscription.is_active = True
+#         subscription.stripe_subscription_id = stripe_subscription_id
+#         subscription.save()
+#         logger.info(f"Webhook - Learner subscription ACTIVATED for user ID: {user_id}")
+#     except LearnerPremiumSubscription.DoesNotExist:
+#         logger.warning(f"Webhook - No subscription found for user ID: {user_id}")
+#         return
+#     except MultipleObjectsReturned:
+#         logger.error(f"Webhook - Multiple subscriptions found for user ID: {user_id}")
+#         return
+#     except ValueError:
+#         logger.error(f"Webhook - Invalid user_id format: {user_id_str}")
+#         return
+#     except Exception as e:
+#         logger.exception(f"Webhook - Error activating subscription for user ID: {user_id}: {e}")
+#         return
+
+#     referral_used = False
+#     earning_amount = Decimal("0.00")
+#     # referrral earnigs
+#     if referral_code_used:
+#         try:
+#             referrer_entry = ReferralCode.objects.get(code=referral_code_used)
+#             referrer = referrer_entry.user
+
+#             if referrer.id != user_id and \
+#                hasattr(referrer, 'premium_subscription') and \
+#                referrer.premium_subscription.is_active:
+
+#                 referral_used = True
+#                 earning_amount = settings.PREMIUM_PRICE * Decimal("0.30")
+
+#                 referral_earning_instance = ReferralEarning.objects.create(
+#                     referrer=referrer,
+#                     referred_user_id=user_id,
+#                     amount=earning_amount,
+#                     stripe_transfer_id=payment_intent_id
+#                 )
+
+#                 referrer_wallet, created_wallet = Wallet.objects.get_or_create(
+#                     user=referrer,
+#                     wallet_type="earnings"
+#                 )
+
+#                 if created_wallet:
+#                     logger.info(f"Webhook - Created new earnings wallet for referrer: {referrer.email}")
+
+#                 referrer_wallet.add_funds(
+#                     amount=earning_amount,
+#                     transaction_type='credit_referral',
+#                     source_id=referral_earning_instance.id,
+#                     description=f"Referral bonus for subscription purchase by user {user_id}"
+#                 )
+#                 logger.info(f"Webhook - Referrer wallet updated: {referrer_wallet.balance}")
+#             else:
+#                 logger.warning(f"Webhook - Invalid referral or inactive referrer: {referrer.email}")
+#         except ReferralCode.DoesNotExist:
+#             logger.warning(f"Webhook - Referral code not found: {referral_code_used}")
+#         except StripeAccount.DoesNotExist:
+#             logger.warning(f"Webhook - Referrer has no StripeAccount: {referrer.email}")
+#         except Exception as e:
+#             logger.exception(f"Webhook - Error processing referral for user {user_id}: {e}")
+
+#         payment_intent_id = session_data.get("payment_intent")
+#         try:
+#             booking = SessionBooking.objects.get(stripe_payment_intent_id=payment_intent_id)
+
+#             # Only update if not already captured
+#             if not booking.is_payment_captured:
+#                 # Set status, capture payment, and calculate split
+#                 booking.status = SessionBooking.Status.CONFIRMED
+#                 booking.is_payment_captured = True
+#                 booking.captured_at = now()
+
+#                 total_amount = booking.amount
+#                 platform_fee = round(total_amount * 0.20, 2)
+#                 mentor_payout = round(total_amount * 0.80, 2)
+
+#                 booking.platform_fee = platform_fee
+#                 booking.mentor_payout = mentor_payout
+#                 booking.save()
+
+#                 # Update Platform Wallet
+#                 platform_user = settings.PLATFORM_USER  # User instance or user ID from settings
+#                 platform_wallet, _ = Wallet.objects.get_or_create(user=platform_user)
+#                 platform_wallet.balance += platform_fee
+#                 platform_wallet.save()
+
+#                 # Update Mentor Wallet
+#                 mentor_wallet, _ = Wallet.objects.get_or_create(user=booking.mentor)
+#                 mentor_wallet.balance += mentor_payout
+#                 mentor_wallet.save()
+
+#                 logger.info(f"PaymentIntent {payment_intent_id} handled. Split: ₹{platform_fee} to platform, ₹{mentor_payout} to mentor {booking.mentor.email}")
+#         except SessionBooking.DoesNotExist:
+#             logger.warning(f"Booking not found for payment_intent {payment_intent_id}")
+
+
+#     # --- Platform Owner Earnings ---
+#     try:
+#         platform_owner = User.objects.get(email=settings.PLATFORM_OWNER_EMAIL)
+#         platform_wallet, _ = Wallet.objects.get_or_create(user=platform_owner, wallet_type='platform_fees')
+
+#         if referral_used:
+#             platform_earning = settings.PREMIUM_PRICE * Decimal("0.70")
+#         else:
+#             platform_earning = Decimal(str(settings.PREMIUM_PRICE))
+
+#         platform_wallet.add_funds(
+#             amount=platform_earning,
+#             transaction_type='credit_platform_fee',
+#             source_id=stripe_subscription_id or payment_intent_id,
+#             description=f"Platform fee for subscription purchased by user {user_id}"
+#         )
+#         logger.info(f"Webhook - Platform wallet credited: {platform_wallet.balance}")
+
+#     except User.DoesNotExist:
+#         logger.error("Webhook - Platform owner not found. Check PLATFORM_OWNER_EMAIL setting.")
+#     except Exception as e:
+#         logger.exception(f"Webhook - Error crediting platform owner's wallet: {e}")
 
 
 
