@@ -4,6 +4,7 @@ import logging
 from django.db import transaction
 from decimal import Decimal
 from rest_framework.exceptions import ValidationError
+from notification.utils import notify_admins_and_staff
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -96,6 +97,9 @@ class Wallet(models.Model):
                 description=description
             )
         logger.info(f"Added {amount} to {self.user.email}'s {self.wallet_type} wallet. New balance: {self.balance}")
+        notify_admins_and_staff(
+        f"{amount} added to {self.user.email}'s {self.wallet_type} wallet. Description: {description}"
+        )
 
     def withdraw_funds(self, amount, source_id=None, description=""):
         if amount <= 0:
@@ -118,6 +122,9 @@ class Wallet(models.Model):
             )
 
         logger.info(f"{self.user.email} withdrew {amount} from {self.wallet_type} wallet. New balance: {self.balance}")
+        notify_admins_and_staff(
+        f"{amount} withdrawn from {self.user.email}'s {self.wallet_type} wallet. Description: {description}"
+        )
 
 
 class WalletTransaction(models.Model):

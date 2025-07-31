@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'chat',
     'premium',
     'habits',
+    'notification',
 
 ]
 

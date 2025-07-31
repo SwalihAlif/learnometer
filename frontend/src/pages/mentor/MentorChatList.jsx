@@ -28,15 +28,7 @@ function MentorChatList() {
 
       try {
         setLoadingConversations(true);
-        // --- FIX HERE: Ensure the path is correct relative to axiosInstance.baseURL ---
-        // If baseURL is http://localhost:8000/api/, then 'chat/conversations/' makes it
-        // http://localhost:8000/api/chat/conversations/
-        const response = await axiosInstance.get('chat/conversations/'); // This should be correct
-        // If this still fails, try the absolute path for debugging:
-        // const response = await axiosInstance.get('http://localhost:8000/api/chat/conversations/');
-        // If the absolute path works, it means your axiosInstance.baseURL might be misconfigured or not applied.
-        // But based on your VITE_API_URL, this relative path should be correct.
-        // --- END FIX ---
+        const response = await axiosInstance.get('chat/conversations/');
         setConversations(response.data);
       } catch (error) {
         console.error('Failed to fetch conversations:', error);

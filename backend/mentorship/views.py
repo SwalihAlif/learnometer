@@ -48,6 +48,7 @@ from django.http import HttpResponse
 import json
 from .models import StripeAccount
 from premium.models import LearnerPayout, LearnerPremiumSubscription, ReferralCode, ReferralEarning
+from notification.utils import notify_admins_and_staff
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +194,8 @@ class MentorAvailabilityViewSet(viewsets.ModelViewSet):
 
         # Save if all checks passed
         serializer.save(mentor=user)
+        notify_admins_and_staff(f"Mentor {user.email} has created a new availability slot.")
+
 
 
 # ----------------------------
@@ -700,6 +703,9 @@ def handle_checkout_session_completed(session_data):
         subscription.is_active = True
         subscription.stripe_subscription_id = stripe_subscription_id
         subscription.save()
+        notify_admins_and_staff(
+            f"User #{user_id} has subscribed to premium. Revenue recorded."
+        )
         logger.info(f"Webhook - Learner subscription ACTIVATED for user ID: {user_id}")
     except LearnerPremiumSubscription.DoesNotExist:
         logger.warning(f"Webhook - No subscription found for user ID: {user_id}")
@@ -765,152 +771,8 @@ def handle_checkout_session_completed(session_data):
         logger.exception(f"Webhook - Error crediting platform owner's wallet: {e}")
 
 
-
-# def handle_checkout_session_completed(session_data):
-#     user_id_str = session_data['metadata'].get("user_id")
-#     referral_code_used = session_data['metadata'].get("referral_code_used", "")
-#     stripe_subscription_id = session_data.get("subscription", "")
-#     payment_intent_id = session_data.get("payment_intent", "")
-
-#     logger.info(f"Webhook - handle_checkout_session_completed: Starting for user_id_str={user_id_str}, referral_code_used={referral_code_used}")
-#     logger.debug(f"Webhook - Full session_data: {session_data}")
-
-#     if not user_id_str:
-#         logger.error(f"Webhook - Missing 'user_id' in metadata for checkout.session.completed event. Session ID: {session_data.get('id')}")
-#         return
-
-#     try:
-#         user_id = int(user_id_str)
-#         subscription = LearnerPremiumSubscription.objects.get(user__id=user_id)
-#         subscription.is_active = True
-#         subscription.stripe_subscription_id = stripe_subscription_id
-#         subscription.save()
-#         logger.info(f"Webhook - Learner subscription ACTIVATED for user ID: {user_id}")
-#     except LearnerPremiumSubscription.DoesNotExist:
-#         logger.warning(f"Webhook - No subscription found for user ID: {user_id}")
-#         return
-#     except MultipleObjectsReturned:
-#         logger.error(f"Webhook - Multiple subscriptions found for user ID: {user_id}")
-#         return
-#     except ValueError:
-#         logger.error(f"Webhook - Invalid user_id format: {user_id_str}")
-#         return
-#     except Exception as e:
-#         logger.exception(f"Webhook - Error activating subscription for user ID: {user_id}: {e}")
-#         return
-
-#     referral_used = False
-#     earning_amount = Decimal("0.00")
-#     # referrral earnigs
-#     if referral_code_used:
-#         try:
-#             referrer_entry = ReferralCode.objects.get(code=referral_code_used)
-#             referrer = referrer_entry.user
-
-#             if referrer.id != user_id and \
-#                hasattr(referrer, 'premium_subscription') and \
-#                referrer.premium_subscription.is_active:
-
-#                 referral_used = True
-#                 earning_amount = settings.PREMIUM_PRICE * Decimal("0.30")
-
-#                 referral_earning_instance = ReferralEarning.objects.create(
-#                     referrer=referrer,
-#                     referred_user_id=user_id,
-#                     amount=earning_amount,
-#                     stripe_transfer_id=payment_intent_id
-#                 )
-
-#                 referrer_wallet, created_wallet = Wallet.objects.get_or_create(
-#                     user=referrer,
-#                     wallet_type="earnings"
-#                 )
-
-#                 if created_wallet:
-#                     logger.info(f"Webhook - Created new earnings wallet for referrer: {referrer.email}")
-
-#                 referrer_wallet.add_funds(
-#                     amount=earning_amount,
-#                     transaction_type='credit_referral',
-#                     source_id=referral_earning_instance.id,
-#                     description=f"Referral bonus for subscription purchase by user {user_id}"
-#                 )
-#                 logger.info(f"Webhook - Referrer wallet updated: {referrer_wallet.balance}")
-#             else:
-#                 logger.warning(f"Webhook - Invalid referral or inactive referrer: {referrer.email}")
-#         except ReferralCode.DoesNotExist:
-#             logger.warning(f"Webhook - Referral code not found: {referral_code_used}")
-#         except StripeAccount.DoesNotExist:
-#             logger.warning(f"Webhook - Referrer has no StripeAccount: {referrer.email}")
-#         except Exception as e:
-#             logger.exception(f"Webhook - Error processing referral for user {user_id}: {e}")
-
-#         payment_intent_id = session_data.get("payment_intent")
-#         try:
-#             booking = SessionBooking.objects.get(stripe_payment_intent_id=payment_intent_id)
-
-#             # Only update if not already captured
-#             if not booking.is_payment_captured:
-#                 # Set status, capture payment, and calculate split
-#                 booking.status = SessionBooking.Status.CONFIRMED
-#                 booking.is_payment_captured = True
-#                 booking.captured_at = now()
-
-#                 total_amount = booking.amount
-#                 platform_fee = round(total_amount * 0.20, 2)
-#                 mentor_payout = round(total_amount * 0.80, 2)
-
-#                 booking.platform_fee = platform_fee
-#                 booking.mentor_payout = mentor_payout
-#                 booking.save()
-
-#                 # Update Platform Wallet
-#                 platform_user = settings.PLATFORM_USER  # User instance or user ID from settings
-#                 platform_wallet, _ = Wallet.objects.get_or_create(user=platform_user)
-#                 platform_wallet.balance += platform_fee
-#                 platform_wallet.save()
-
-#                 # Update Mentor Wallet
-#                 mentor_wallet, _ = Wallet.objects.get_or_create(user=booking.mentor)
-#                 mentor_wallet.balance += mentor_payout
-#                 mentor_wallet.save()
-
-#                 logger.info(f"PaymentIntent {payment_intent_id} handled. Split: ₹{platform_fee} to platform, ₹{mentor_payout} to mentor {booking.mentor.email}")
-#         except SessionBooking.DoesNotExist:
-#             logger.warning(f"Booking not found for payment_intent {payment_intent_id}")
-
-
-#     # --- Platform Owner Earnings ---
-#     try:
-#         platform_owner = User.objects.get(email=settings.PLATFORM_OWNER_EMAIL)
-#         platform_wallet, _ = Wallet.objects.get_or_create(user=platform_owner, wallet_type='platform_fees')
-
-#         if referral_used:
-#             platform_earning = settings.PREMIUM_PRICE * Decimal("0.70")
-#         else:
-#             platform_earning = Decimal(str(settings.PREMIUM_PRICE))
-
-#         platform_wallet.add_funds(
-#             amount=platform_earning,
-#             transaction_type='credit_platform_fee',
-#             source_id=stripe_subscription_id or payment_intent_id,
-#             description=f"Platform fee for subscription purchased by user {user_id}"
-#         )
-#         logger.info(f"Webhook - Platform wallet credited: {platform_wallet.balance}")
-
-#     except User.DoesNotExist:
-#         logger.error("Webhook - Platform owner not found. Check PLATFORM_OWNER_EMAIL setting.")
-#     except Exception as e:
-#         logger.exception(f"Webhook - Error crediting platform owner's wallet: {e}")
-
-
-
-
 def handle_account_updated(account_data):
-    """
-    Handles the 'account.updated' event for connected accounts (e.g., mentors).
-    Updates the local PaymentAccount model's setup_complete and onboarding_complete status.
-    """
+
     stripe_account_id = account_data.get("id")
     capabilities = account_data.get("capabilities", {})
     details_submitted = account_data.get("details_submitted", False)
@@ -922,16 +784,10 @@ def handle_account_updated(account_data):
 
 
     try:
-        # Assuming you store the stripe_account_id in your PaymentAccount model
         account = StripeAccount.objects.get(stripe_account_id=stripe_account_id, platform='stripe')
 
-        # Check 'transfers' capability for onboarding completion
         transfers_active = capabilities.get("transfers") == "active"
         card_payments_active = capabilities.get("card_payments", {}).get("status") == "active"
-
-        # Stripe's definition of "onboarding complete" generally means the account is fully set up
-        # to receive transfers/payouts. This is usually reflected by details_submitted and
-        # the relevant capability being 'active'.
         account.setup_complete = details_submitted and payouts_enabled
         account.onboarding_complete = transfers_active and details_submitted # Often details_submitted is key
 
@@ -951,7 +807,7 @@ class StripeWebhookView(APIView):
     def post(self, request, *args, **kwargs):
         payload = request.body
         sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-        webhook_secret = settings.STRIPE_WEBHOOK_SECRET # Make sure this is your production webhook secret
+        webhook_secret = settings.STRIPE_WEBHOOK_SECRET
 
         try:
             event = stripe.Webhook.construct_event(
@@ -959,15 +815,12 @@ class StripeWebhookView(APIView):
             )
             logger.info(f"Stripe webhook event received: {event['type']} (ID: {event.id})")
         except (ValueError, stripe.error.SignatureVerificationError) as e:
-            # Invalid payload or signature
             logger.error(f"Stripe webhook signature verification failed: {e}")
             return Response(status=400)
         except Exception as e:
-            # Other errors during event construction
             logger.exception(f"Error constructing Stripe webhook event: {e}")
             return Response(status=400)
 
-        # Route the event to the appropriate handler function
         try:
             event_type = event['type']
             event_data_object = event['data']['object']
@@ -981,15 +834,11 @@ class StripeWebhookView(APIView):
             elif event_type == 'account.application.authorized':
                 # This is likely for OAuth integrations, if you have any
                 logger.info(f"Unhandled event type 'account.application.authorized' received: {event['id']}")
-                # handle_account_authorized(event_data_object) # Uncomment and implement if needed
-            # Add more event types here as your Stripe integration grows
             else:
                 logger.info(f"Unhandled Stripe event type received: {event_type} (ID: {event.id})")
 
         except Exception as e:
             logger.exception(f"Error processing Stripe webhook event {event['type']} (ID: {event.id}): {e}")
-            # It's important to return 200 even on internal errors to prevent Stripe from retrying
-            # indefinitely, but log the error so you can investigate.
             return Response(status=200)
 
         # Always return a 200 OK to Stripe
@@ -1015,6 +864,7 @@ class ReviewCreateAPIView(APIView):
             rating=request.data.get("rating"),
             comment=request.data.get("comment")
         )
+        notify_admins_and_staff(f"New review submitted by {request.user.email} for {session.mentor.email} after the session {session_id}.")
 
         serializer = ReviewSerializer(review)
         return Response(serializer.data, status=201)
@@ -1070,6 +920,7 @@ class FeedbackUploadAPIView(APIView):
         serializer = FeedbackSerializer(data=data)
         if serializer.is_valid():
             serializer.save(giver=request.user, receiver=session.learner)
+            notify_admins_and_staff(f"{request.user.email} uploaded feedback for session {session.id}.")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1097,10 +948,6 @@ class FeedbackRetrieveAPIView(APIView):
         feedback = get_object_or_404(Feedback, id=feedback_id)
         serializer = FeedbackSerializer(feedback)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
-
-
-    
 
 #cheking vie............................
 import cloudinary.uploader

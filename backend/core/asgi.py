@@ -10,7 +10,7 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 # backend/core/asgi.py
 
 import os
-import django # <--- RE-ADD THIS IMPORT
+import django 
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
@@ -20,7 +20,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
 # Call django.setup() BEFORE any other Django-related imports that might
 # trigger model loading (like importing consumers or models directly).
-django.setup() # <--- RE-ADD THIS CALL
+django.setup() 
 
 # Initialize Django ASGI application early to ensure the AppRegistry
 # is populated before importing code that may import ORM models.

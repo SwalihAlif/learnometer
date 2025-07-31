@@ -22,7 +22,7 @@ from .serializers import OTPVerifySerializer
 from rest_framework.generics import RetrieveAPIView
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.utils import timezone
-
+from notification.utils import notify_admins_and_staff
 
 import logging
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -276,6 +276,8 @@ class RegisterMentorView(generics.CreateAPIView):
             user = serializer.save(is_active=False)
             otp = OTP.objects.create(user=user)
             send_otp_email(user.email, otp.code)
+            notify_admins_and_staff(f" The {user} is registered as mentor and sent OTP to verify")
+
 
 
 class RegisterLearnerView(generics.CreateAPIView):
@@ -307,6 +309,8 @@ class RegisterLearnerView(generics.CreateAPIView):
             user = serializer.save(is_active=False)  # Deactivate until OTP is verified
             otp = OTP.objects.create(user=user)
             send_otp_email(user.email, otp.code)
+            notify_admins_and_staff(f" The {user} is registered as learner and sent OTP to verify")
+
 
 
 User = get_user_model()
@@ -344,6 +348,7 @@ class OTPVerifyView(APIView):
             otp.save()
             user.is_active = True
             user.save()
+            notify_admins_and_staff(f" The {user} is Active now")
 
             # It creates the 'sessionid' cookie
             # that AuthMiddlewareStack relies on for WebSocket authentication.
