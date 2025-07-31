@@ -54,7 +54,7 @@ const handleCreateAccount = async () => {
 const fetchWalletAmount = async () => {
 
   try {
-    const response = await axiosInstance.get('premium/wallet/');
+    const response = await axiosInstance.get('premium/admin/wallet/');
     console.log("Wallet data", response.data)
     setWalletBalance(response.data.balance)
 

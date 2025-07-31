@@ -10,8 +10,10 @@ import logging
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from decimal import Decimal
-from .models import Wallet
-from .serializers import WalletSerializer
+from .models import Wallet, WalletTransaction
+from .serializers import WalletSerializer, WalletTransactionSerializer
+from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import ValidationError
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -358,3 +360,55 @@ class WalletAPIView(APIView):
         wallet, created = Wallet.objects.get_or_create(user=request.user, wallet_type='earnings')
         serializer = WalletSerializer(wallet)
         return Response(serializer.data)
+# ----------------------------
+# Admin wallet display
+# ----------------------------
+class AdminWalletAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wallet, created = Wallet.objects.get_or_create(user=request.user, wallet_type='platform_fees')
+        serializer = WalletSerializer(wallet)
+        return Response(serializer.data)
+    
+
+
+# ----------------------------
+# User wallet transactions
+# ----------------------------
+class WalletTransactionListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wallet = get_object_or_404(Wallet, user=request.user, wallet_type='earnings')
+        transactions = wallet.transactions.all()  # Already ordered by -timestamp in Meta
+
+        serializer = WalletTransactionSerializer(transactions, many=True)
+        return Response(serializer.data)
+    
+
+# ----------------------------
+# User wallet withdraw
+# ----------------------------
+
+class WithdrawFundsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        amount = request.data.get('amount')
+        try:
+            amount = Decimal(amount)
+        except:
+            return Response({"error": "Invalid amount."}, status=400)
+
+        wallet = Wallet.objects.filter(user=request.user, wallet_type='earnings').first()
+        if not wallet:
+            return Response({"error": "Earnings wallet not found."}, status=404)
+
+        try:
+            wallet.withdraw_funds(amount, description="User-initiated withdrawal")
+        except ValidationError as ve:
+            return Response({"error": str(ve)}, status=400)
+
+        return Response({"message": f"₹{amount} withdrawn successfully."}, status=200)
+

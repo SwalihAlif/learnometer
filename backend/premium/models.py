@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.db import models
 import logging
 from django.db import transaction
+from decimal import Decimal
+from rest_framework.exceptions import ValidationError
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -95,6 +97,28 @@ class Wallet(models.Model):
             )
         logger.info(f"Added {amount} to {self.user.email}'s {self.wallet_type} wallet. New balance: {self.balance}")
 
+    def withdraw_funds(self, amount, source_id=None, description=""):
+        if amount <= 0:
+            raise ValidationError("Withdrawal amount must be positive.")
+
+        if self.balance < amount:
+            raise ValidationError("Insufficient balance for withdrawal.")
+
+        with transaction.atomic():
+            self.balance -= amount
+            self.save()
+
+            WalletTransaction.objects.create(
+                wallet=self,
+                amount=-Decimal(amount),  # Store as negative
+                transaction_type='debit_payout',
+                current_balance=self.balance,
+                source_id=source_id,
+                description=description
+            )
+
+        logger.info(f"{self.user.email} withdrew {amount} from {self.wallet_type} wallet. New balance: {self.balance}")
+
 
 class WalletTransaction(models.Model):
     """
@@ -110,12 +134,11 @@ class WalletTransaction(models.Model):
     )
 
     wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name="transactions")
-    amount = models.DecimalField(max_digits=10, decimal_places=2) # Positive for credit, negative for debit
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
     transaction_type = models.CharField(max_length=50, choices=TRANSACTION_TYPES)
-    current_balance = models.DecimalField(max_digits=10, decimal_places=2) # Balance after this transaction
-    source_id = models.CharField(max_length=255, blank=True, null=True, help_text="e.g., Stripe ID, ReferralEarning ID") # ID of the source event
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2) 
+    source_id = models.CharField(max_length=255, blank=True, null=True, help_text="e.g., Stripe ID, ReferralEarning ID")
     description = models.TextField(blank=True, null=True)
-
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

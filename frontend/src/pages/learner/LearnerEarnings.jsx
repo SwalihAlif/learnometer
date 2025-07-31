@@ -1,64 +1,204 @@
-import React, { useEffect, useState } from "react";
-import axiosInstance from "../../axios";
+
+import React, { useState, useEffect } from 'react';
+// import { Button } from '@/components/ui/button'; // Optional: if you're using a button component library
+import axiosInstance from '../../axios';
+import { FaWallet } from 'react-icons/fa';
 
 const LearnerEarnings = () => {
-  const [walletAmount, setWalletAmount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    fetchEarnings();
+  const [walletBalance, setWalletBalance] = useState(523.75);
+  const [isStripeOnboarded, setIsStripeOnboarded] = useState(false); 
+  const [transactions, setTransactions] = useState([]);
+
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+
+    useEffect(() => {
+    fetchOnboardingStatus();
+    fetchWalletAmount();
+    fetchWalletTransactions();
   }, []);
 
-  const fetchEarnings = async () => {
+  const fetchOnboardingStatus = async () => {
     try {
-      const res = await axiosInstance.get("premium/learner/earnings/");
-      setWalletAmount(res.data.wallet_balance);
+      const response = await axiosInstance.get('premium/learner/stripe/status/');
+      setIsStripeOnboarded(response.data.onboarding_complete);
     } catch (err) {
-      console.error(err);
-      setError("Failed to fetch earnings.");
+      console.error('Failed to fetch onboarding status:', err);
     }
   };
 
-  const handlePayout = async () => {
-    setLoading(true);
-    setMessage("");
-    setError("");
+const handleCreateAccount = async () => {
+  try {
+    const response = await axiosInstance.post('premium/learner/stripe/create/');
+    const data = response.data;
+
+    if (data.onboarding_required && data.onboarding_url) {
+      // Redirect to Stripe onboarding link
+      window.location.href = data.onboarding_url;
+    } else {
+      // Onboarding already completed
+      alert('Stripe account already set up and onboarded.');
+    }
+  } catch (err) {
+    console.error('Failed to create Stripe account:', err);
+    alert(err.response?.data?.error || 'Something went wrong. Try again later.');
+  }
+};
+
+const fetchWalletAmount = async () => {
+
+  try {
+    const response = await axiosInstance.get('premium/wallet/');
+    console.log("Wallet data", response.data)
+    setWalletBalance(response.data.balance)
+
+  } catch (err) {
+    console.error('Failed to fetch wallet balance:', err);
+
+  }
+}
+
+const fetchWalletTransactions = async () => {
+  try {
+    const response = await axiosInstance.get('premium/wallet/transactions/');
+    console.log("Wallet transactions:", response.data);
+    setTransactions(response.data);
+  } catch (err) {
+    console.error('Failed to fetch wallet transactions:', err);
+  }
+};
+
+
+  const handleWithdraw = async () => {
+    if (!withdrawAmount || isNaN(withdrawAmount)) {
+      alert("Please enter a valid number.");
+      return;
+    }
+
+    const amount = parseFloat(withdrawAmount);
+
+    if (amount <= 0 || amount > walletBalance) {
+      alert("Invalid withdrawal amount.");
+      return;
+    }
 
     try {
-      const res = await axiosInstance.post("premium/learner/payout/");
-      setMessage(res.data.message || "Payout requested successfully.");
-      fetchEarnings(); // refresh after payout
+      await axiosInstance.post('premium/wallet/withdraw/', {
+        amount,
+      });
+
+      alert('Successfully withdrawed to your account.');
+
+      setWalletBalance((prev) => prev - amount);
+      setWithdrawAmount('');
+      setShowWithdrawModal(false);
+      fetchWalletTransactions(); // refresh transactions
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to initiate payout.");
-    } finally {
-      setLoading(false);
+      console.error('Withdrawal failed:', err);
+      alert('Failed to withdraw. Try again.');
     }
   };
 
-  return (
-    <div className="max-w-md mx-auto mt-10 p-6 border rounded shadow">
-      <h2 className="text-xl font-semibold mb-4">Your Referral Earnings</h2>
+  const handleSeeAll = () => {
+  // You can navigate to a full transaction history page here
+  console.log("See All clicked");
+  // Example with React Router:
+  // navigate('/admin/withdrawals'); 
+};
+return (
+  <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
+    <div className="w-full max-w-md bg-gray-800 shadow-lg rounded-2xl p-6 space-y-6">
+      <div className="flex items-center space-x-3">
+        <FaWallet className="text-yellow-400 text-3xl" />
+        <h2 className="text-2xl font-bold">Admin Wallet</h2>
+      </div>
+  
+      <div className="text-center">
+        <p className="text-sm text-gray-400 mb-1">Total Wallet Balance</p>
+        <h3 className="text-4xl font-bold text-green-400">${parseFloat(walletBalance).toFixed(2)}</h3>
+      </div>
 
-      <p className="text-lg mb-4">Total: ₹{walletAmount.toFixed(2)}</p>
+      {isStripeOnboarded ? (
+        <button
+          onClick={() => setShowWithdrawModal(true)}
+          className="w-full bg-blue-600 hover:bg-blue-700 transition rounded-lg py-2 text-white font-semibold"
+        >
+          Withdraw Funds
+        </button>
+      ) : (
+        <button
+          onClick={handleCreateAccount}
+          className="w-full bg-red-600 hover:bg-red-700 transition rounded-lg py-2 text-white font-semibold"
+        >
+          You have no payment account yet. Create one
+        </button>
+      )}
 
-      {message && <p className="text-green-600 mb-2">{message}</p>}
-      {error && <p className="text-red-600 mb-2">{error}</p>}
-
-      <button
-        onClick={handlePayout}
-        disabled={loading || walletAmount < 1}
-        className={`w-full px-4 py-2 rounded ${
-          loading || walletAmount < 1
-            ? "bg-gray-400 cursor-not-allowed"
-            : "bg-blue-600 hover:bg-blue-700 text-white"
-        }`}
-      >
-        {loading ? "Processing..." : "Request Payout"}
-      </button>
+      {/* Withdrawal History */}
+      <div className="bg-gray-700 p-4 rounded-lg mt-4">
+        <h4 className="text-lg font-semibold mb-2">Recent Transactions</h4>
+        <div className="max-h-48 overflow-y-auto space-y-2">
+          {transactions.slice(0, 10).map((transaction, index) => (
+            <div key={index} className="flex justify-between items-center border-b border-gray-600 pb-1">
+              <span className="text-sm">{transaction.timestamp.slice(0, 10)}</span>
+              <span className="text-sm">${parseFloat(transaction.amount).toFixed(2)}</span>
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  transaction.transaction_type === 'credit_referral'
+                    ? 'bg-green-500'
+                    : transaction.transaction_type === 'debit_payout'
+                    ? 'bg-yellow-500'
+                    : 'bg-red-500'
+                }`}
+              >
+                {transaction.transaction_type}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="text-right mt-2">
+          <button className="text-blue-400 hover:underline text-sm" onClick={handleSeeAll}>
+            See All
+          </button>
+        </div>
+      </div>
     </div>
-  );
+
+{/* Withdraw Modal */}
+{showWithdrawModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-6 rounded-2xl shadow-xl w-80">
+      <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">Withdraw Amount</h3>
+      <input
+        type="number"
+        value={withdrawAmount}
+        onChange={(e) => setWithdrawAmount(e.target.value)}
+        placeholder="Enter amount"
+className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 text-gray-800 placeholder-gray-500"
+      />
+      <div className="flex justify-between">
+        <button
+          onClick={handleWithdraw}
+          className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+        >
+          Submit
+        </button>
+        <button
+          onClick={() => setShowWithdrawModal(false)}
+          className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+  </div>
+);
+
 };
 
 export default LearnerEarnings;

@@ -643,16 +643,24 @@ def handle_payment_intent_succeeded(intent_data):
             try:
                 platform_user = User.objects.get(email=settings.PLATFORM_OWNER_EMAIL)
                 platform_wallet, _ = Wallet.objects.get_or_create(user=platform_user)
-                platform_wallet.balance += booking.platform_fee
-                platform_wallet.save()
+                platform_wallet.add_funds(
+                    amount=booking.platform_fee,
+                    transaction_type='credit_platform_fee',
+                    source_id=pi_id,
+                    description=f"Mentor session's platform fee for the session: {booking_id}"
+                    )
                 logger.info(f"Platform wallet credited with {booking.platform_fee}. New balance: {platform_wallet.balance}")
             except User.DoesNotExist:
                 logger.error("Platform owner user not found. Check settings.PLATFORM_OWNER_EMAIL.")
 
             mentor = booking.mentor
             mentor_wallet, _ = Wallet.objects.get_or_create(user=mentor)
-            mentor_wallet.balance += booking.mentor_payout
-            mentor_wallet.save()
+            mentor_wallet.add_funds(
+                amount=booking.mentor_payout,
+                transaction_type='credit_session_fee',
+                source_id=pi_id,
+                description=f"Mentor session fee for the session: {booking_id}"
+                )
             logger.info(f"Mentor {mentor.email}'s wallet credited with {booking.mentor_payout}. New balance: {mentor_wallet.balance}")
 
             logger.info(
@@ -667,93 +675,6 @@ def handle_payment_intent_succeeded(intent_data):
         logger.exception(f"Webhook: Error handling payment_intent.succeeded for PI {pi_id}: {str(e)}")
 
 
-# def handle_checkout_session_completed(session_data):
-#     """Handles the 'checkout.session.completed' event for premium subscriptions."""
-#     user_id_str = session_data['metadata'].get("user_id")
-#     referral_code_used = session_data['metadata'].get("referral_code_used", "")
-#     stripe_subscription_id = session_data.get("subscription", "") # This will be the Stripe Subscription ID
-#     payment_intent_id = session_data.get("payment_intent", "") # Might be null for subscriptions
-
-#     logger.info(f"Webhook - handle_checkout_session_completed: Starting for user_id_str={user_id_str}, referral_code_used={referral_code_used}")
-#     logger.debug(f"Webhook - Full session_data: {session_data}")
-
-#     if not user_id_str:
-#         logger.error(f"Webhook - Missing 'user_id' in metadata for checkout.session.completed event. Session ID: {session_data.get('id')}")
-#         return
-
-#     try:
-#         user_id = int(user_id_str)
-#         # Attempt to get the subscription. Using filter().first() is safer if duplicates might exist.
-#         # However, if 'get' is expected to work and we want to catch MultipleObjectsReturned explicitly:
-#         subscription = LearnerPremiumSubscription.objects.get(user__id=user_id)
-#         logger.info(f"Webhook - Found subscription for user {user_id}. Current isActive: {subscription.is_active}")
-
-#         subscription.is_active = True # <-- Setting to True here
-#         subscription.stripe_subscription_id = stripe_subscription_id
-#         subscription.save() # <-- Saving the change
-#         logger.info(f"Webhook - Learner subscription ACTIVATED for user ID: {user_id}. New isActive: {subscription.is_active}")
-
-#     except LearnerPremiumSubscription.DoesNotExist:
-#         logger.warning(f"Webhook - No LearnerPremiumSubscription found for user ID: {user_id}. Cannot activate subscription.")
-#         return # Exit if subscription not found
-#     except MultipleObjectsReturned: # <--- CRITICAL: ADDED THIS HANDLER
-#         logger.error(f"Webhook - Multiple LearnerPremiumSubscription objects found for user ID: {user_id}. This is an inconsistent state. Please investigate database.")
-#         return 
-#     except ValueError:
-#         logger.error(f"Webhook - Invalid 'user_id' in metadata (not an integer): {user_id_str}. Session ID: {session_data.get('id')}")
-#         return
-#     except Exception as e: # Catch any other unexpected errors during subscription activation
-#         logger.exception(f"Webhook - Unexpected error during subscription activation for user ID: {user_id}: {e}")
-#         return
-
-#     # --- Referral Code Handling (remains largely same) ---
-#     if referral_code_used:
-#         try:
-#             referrer_entry = ReferralCode.objects.get(code=referral_code_used)
-#             referrer = referrer_entry.user
-
-#             # Ensure referrer is not the user themselves and has an active premium subscription
-#             if referrer.id != user_id and \
-#                hasattr(referrer, 'premium_subscription') and \
-#                referrer.premium_subscription.is_active:
-
-#                 logger.info(f"Webhook - Valid referral by {referrer.email} for user ID: {user_id}")
-#                 earning_amount = settings.PREMIUM_PRICE * Decimal("0.30")
-
-#                 referral_earning_instance = ReferralEarning.objects.create(
-#                     referrer=referrer,
-#                     referred_user_id=user_id,
-#                     amount=earning_amount,
-#                     stripe_transfer_id=payment_intent_id # Or consider using subscription ID if transfer is tied to it
-#                 )
-
-#                 referrer_wallet, created_wallet = Wallet.objects.get_or_create(
-#                     user=referrer,
-#                     wallet_type="earnings" # Use a specific wallet type for referral earnings
-#                 )
-#                 if created_wallet:
-#                     logger.info(f"Webhook - Created new '{referrer_wallet.wallet_type}' wallet for referrer: {referrer.email}")
-
-#                 # 2. Add funds to the wallet using the Wallet model's method
-#                 referrer_wallet.add_funds(
-#                     amount=earning_amount,
-#                     transaction_type='credit_referral', # Use the defined transaction type
-#                     source_id=referral_earning_instance.id, # Link to the specific ReferralEarning record
-#                     description=f"Referral bonus for subscription purchase by user {user_id}"
-#                 )
-#                 logger.info(f"Webhook - Wallet balance updated for referrer {referrer.email}: {referrer_wallet.balance}")
-
-#             else:
-#                 logger.warning(f"Webhook - Referral invalid or inactive referrer for user {user_id}: {referrer.email}")
-#         except ReferralCode.DoesNotExist:
-#             logger.warning(f"Webhook - Referral code does not exist: {referral_code_used} for user {user_id}")
-#         except StripeAccount.DoesNotExist: # If referrer somehow doesn't have a StripeAccount
-#              logger.warning(f"Webhook - Referrer {referrer.email} does not have a StripeAccount for earnings.")
-#         except Exception as e:
-#             logger.exception(f"Webhook - Error processing referral record for user {user_id}: {e}")
-
-
-# added for checking the subscription amout is credited to platform owner
 def handle_checkout_session_completed(session_data): 
     user_id_str = session_data['metadata'].get("user_id")
     referral_code_used = session_data['metadata'].get("referral_code_used", "")
