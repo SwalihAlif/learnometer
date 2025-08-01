@@ -11,7 +11,7 @@ const NotificationBell = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await axiosInstance.get("notification/admin-notification/");
+        const res = await axiosInstance.get("notification/admin-notification-bell/");
         console.log("[API] Fetched notifications:", res.data);
 
         const data = Array.isArray(res.data.results) ? res.data.results : [];
