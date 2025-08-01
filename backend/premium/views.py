@@ -411,4 +411,65 @@ class WithdrawFundsAPIView(APIView):
             return Response({"error": str(ve)}, status=400)
 
         return Response({"message": f"₹{amount} withdrawn successfully."}, status=200)
+    
+#------------------------------------------------------------- For Admin Panel ----------------------------------------------------------------------------------
 
+# ----------------------------
+# Admin - 
+# ----------------------------
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import generics, status
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Count, Sum
+from .models import LearnerPremiumSubscription, ReferralEarning
+from .serializers import PremiumSubscriptionSerializer, ReferralEarningSerializer
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
+class PremiumReferralSummaryAPIView(APIView):
+    def get(self, request):
+        total_subscribers = LearnerPremiumSubscription.objects.filter(is_active=True).count()
+        total_revenue = total_subscribers * 1000  # assuming ₹1000 per subscription
+        total_referral_earnings = ReferralEarning.objects.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+        return Response({
+            'total_premium_subscribers': total_subscribers,
+            'total_revenue': total_revenue,
+            'total_referral_earnings_paid': float(total_referral_earnings),
+        })
+
+
+class PremiumSubscriptionListAPIView(generics.ListAPIView):
+    queryset = LearnerPremiumSubscription.objects.filter(is_active=True).order_by('-created_at')
+    serializer_class = PremiumSubscriptionSerializer
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(user__email__icontains=search)
+        return qs
+
+
+class ReferralEarningListAPIView(generics.ListAPIView):
+    queryset = ReferralEarning.objects.select_related('referrer', 'referred_user').order_by('-created_at')
+    serializer_class = ReferralEarningSerializer
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                referrer__email__icontains=search
+            ) | qs.filter(
+                referred_user__email__icontains=search
+            )
+        return qs

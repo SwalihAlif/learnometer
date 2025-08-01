@@ -45,6 +45,15 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+    
+
+    @property
+    def full_name(self):
+        return getattr(self.user_profile, 'full_name', '') or self.email
+
+    def get_full_name(self):
+        return self.full_name
+
 
 
 from django.contrib.auth import get_user_model

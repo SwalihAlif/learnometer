@@ -6,11 +6,16 @@ from .views import (
     LearnerReferralEarningsView,
     LearnerReferralPayoutView,
     WalletAPIView,
-    AdminWalletAPIView,
     CreateLearnerPaymentAccountView,
     CheckLearnerStripeOnboardingStatus,
     WalletTransactionListAPIView,
     WithdrawFundsAPIView,
+
+    # adminpanel ---------------------------------------------------------------------------------
+    AdminWalletAPIView,
+    PremiumReferralSummaryAPIView,
+    PremiumSubscriptionListAPIView,
+    ReferralEarningListAPIView,
 )
 
 urlpatterns = [
@@ -21,9 +26,13 @@ urlpatterns = [
     path("wallet/", WalletAPIView.as_view(), name="user-wallet"),
     path('wallet/withdraw/', WithdrawFundsAPIView.as_view(), name='wallet-withdraw'),
     path('wallet/transactions/', WalletTransactionListAPIView.as_view(), name='wallet-transactions'),
-
-    path("admin/wallet/", AdminWalletAPIView.as_view(), name="user-wallet"),
     path("learner/stripe/create/", CreateLearnerPaymentAccountView.as_view(), name="create-learner-stripe"),
     path("learner/stripe/status/", CheckLearnerStripeOnboardingStatus.as_view(), name="learner-stripe-status"),
 
+    # for adminpanel ------------------------------------------------------------------------------
+
+    path("admin/wallet/", AdminWalletAPIView.as_view(), name="user-wallet"),
+    path('admin/premium-summary/', PremiumReferralSummaryAPIView.as_view(), name='premium-summary'),
+    path('admin/premium-subscriptions/', PremiumSubscriptionListAPIView.as_view(), name='premium-subscriptions'),
+    path('admin/referral-earnings/', ReferralEarningListAPIView.as_view(), name='referral-earnings'),
 ]
