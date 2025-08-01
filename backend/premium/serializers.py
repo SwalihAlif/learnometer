@@ -89,3 +89,36 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
             'timestamp',
         ]
 
+# --------------------------------------- Admin Payment dash
+# serializers.py
+from rest_framework import serializers
+from django.db.models import Sum, Count
+from .models import Wallet, WalletTransaction
+
+class AdminPaymentSummarySerializer(serializers.Serializer):
+    """Serializer for wallet summary metrics"""
+    wallet_type = serializers.CharField()
+    wallet_type_display = serializers.CharField()
+    total_balance = serializers.DecimalField(max_digits=15, decimal_places=2)
+    wallet_count = serializers.IntegerField()
+
+class AdminPaymentMetricsSerializer(serializers.Serializer):
+    """Serializer for overall metrics"""
+    total_transactions = serializers.IntegerField()
+    wallet_summaries = AdminPaymentSummarySerializer(many=True)
+
+class AdminPaymentTransactionSerializer(serializers.ModelSerializer):
+    """Serializer for wallet transactions with user details"""
+    user_name = serializers.CharField(source='wallet.user.get_full_name', read_only=True)
+    user_email = serializers.CharField(source='wallet.user.email', read_only=True)
+    wallet_type = serializers.CharField(source='wallet.wallet_type', read_only=True)
+    wallet_type_display = serializers.CharField(source='wallet.get_wallet_type_display', read_only=True)
+    transaction_type_display = serializers.CharField(source='get_transaction_type_display', read_only=True)
+
+    class Meta:
+        model = WalletTransaction
+        fields = [
+            'id', 'user_name', 'user_email', 'wallet_type', 'wallet_type_display',
+            'transaction_type', 'transaction_type_display', 'amount', 'source_id',
+            'description', 'timestamp', 'current_balance'
+        ]

@@ -16,6 +16,8 @@ from .views import (
     PremiumReferralSummaryAPIView,
     PremiumSubscriptionListAPIView,
     ReferralEarningListAPIView,
+    AdminPaymentMetricsView, 
+    AdminPaymentTransactionListView
 )
 
 urlpatterns = [
@@ -35,4 +37,6 @@ urlpatterns = [
     path('admin/premium-summary/', PremiumReferralSummaryAPIView.as_view(), name='premium-summary'),
     path('admin/premium-subscriptions/', PremiumSubscriptionListAPIView.as_view(), name='premium-subscriptions'),
     path('admin/referral-earnings/', ReferralEarningListAPIView.as_view(), name='referral-earnings'),
+    path('admin/payment/metrics/', AdminPaymentMetricsView.as_view(), name='payment-metrics'),
+    path('admin/payment/transactions/', AdminPaymentTransactionListView.as_view(), name='payment-transactions'), 
 ]

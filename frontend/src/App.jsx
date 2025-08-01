@@ -64,6 +64,7 @@ import AdminVideosPage from './pages/admin/AdminVideo';
 import AdminBooksPage from './pages/admin/AdminBook';
 import AdminWallet from './pages/admin/AdminWallet';
 import AdminPremiumAndReferral from './pages/admin/AdminPremium';
+import PaymentAdminDashboard from './pages/admin/AdminPayments';
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -146,6 +147,7 @@ export default function App() {
               <Route path="books" element={<AdminBooksPage />} />
               <Route path="wallet" element={<AdminWallet />} />
               <Route path="premium" element={<AdminPremiumAndReferral />} />
+              <Route path="payments" element={<PaymentAdminDashboard />} />
               </Route>
             </Route>
 

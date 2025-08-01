@@ -473,3 +473,100 @@ class ReferralEarningListAPIView(generics.ListAPIView):
                 referred_user__email__icontains=search
             )
         return qs
+
+
+
+# --------------------------------------- Admin Payment dash
+
+# views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q, Sum, Count
+from .models import Wallet, WalletTransaction
+from .serializers import AdminPaymentTransactionSerializer, AdminPaymentSummarySerializer, AdminPaymentMetricsSerializer
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class AdminPaymentMetricsView(APIView):
+    """
+    API endpoint to return wallet summary metrics
+    """
+    def get(self, request):
+        # Get wallet summaries grouped by wallet_type
+        wallet_summaries = (
+            Wallet.objects
+            .values('wallet_type')
+            .annotate(
+                total_balance=Sum('balance'),
+                wallet_count=Count('id')
+            )
+            .order_by('wallet_type')
+        )
+        
+        # Add display names for wallet types
+        wallet_type_dict = dict(Wallet.WALLET_TYPES)
+        for summary in wallet_summaries:
+            summary['wallet_type_display'] = wallet_type_dict.get(
+                summary['wallet_type'], summary['wallet_type']
+            )
+        
+        # Get total transaction count
+        total_transactions = WalletTransaction.objects.count()
+        
+        # Prepare response data
+        metrics_data = {
+            'total_transactions': total_transactions,
+            'wallet_summaries': wallet_summaries
+        }
+        
+        serializer = AdminPaymentMetricsSerializer(metrics_data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class AdminPaymentTransactionListView(ListAPIView):
+    """
+    API endpoint for paginated searchable list of WalletTransaction
+    Filters: search (user name/email), wallet_type, transaction_type
+    """
+    serializer_class = AdminPaymentTransactionSerializer
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        queryset = WalletTransaction.objects.select_related(
+            'wallet__user'
+        ).all()
+        
+        # Search filter (user name or email)
+        search = self.request.query_params.get('search', '')
+        if search:
+            queryset = queryset.filter(
+                Q(wallet__user__first_name__icontains=search) |
+                Q(wallet__user__last_name__icontains=search) |
+                Q(wallet__user__email__icontains=search)
+            )
+        
+        # Wallet type filter
+        wallet_type = self.request.query_params.get('wallet_type', '')
+        if wallet_type:
+            queryset = queryset.filter(wallet__wallet_type=wallet_type)
+        
+        # Transaction type filter
+        transaction_type = self.request.query_params.get('transaction_type', '')
+        if transaction_type:
+            queryset = queryset.filter(transaction_type=transaction_type)
+        
+        return queryset.order_by('-timestamp')
+
+# urls.py
+from django.urls import path
+from .views import AdminPaymentMetricsView, AdminPaymentTransactionListView
+
+urlpatterns = [
+    path('api/wallet/metrics/', AdminPaymentMetricsView.as_view(), name='wallet-metrics'),
+    path('api/wallet/transactions/', AdminPaymentTransactionListView.as_view(), name='wallet-transactions'),
+]
