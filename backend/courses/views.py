@@ -6,6 +6,7 @@ from .models import Course, Category
 from .serializers import CourseSerializer, CategorySerializer
 from .trie import CategoryTrie
 
+
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -31,6 +32,6 @@ class CategorySuggestionView(APIView):
             trie.insert(cat.name)
         suggestions = trie.starts_with(query)
         return Response(suggestions)
-
+    
 
 

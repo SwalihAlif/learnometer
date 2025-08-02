@@ -8,6 +8,7 @@ from .views import (
     
 
 ) 
+from .views import user_progress_report
 
 urlpatterns = [
     path('main-topic/', MainTopicListCreateView.as_view(), name='main-topic-list-create'),
@@ -28,6 +29,8 @@ urlpatterns = [
     path('schedule/', LearnerScheduleView.as_view(), name='learner-schedule'),
 
     path('quiz/generate/<int:main_topic_id>/', GenerateAIQuizView.as_view()),
+
+    path('progress-report/', user_progress_report, name='user-progress-report'),
 
     
 

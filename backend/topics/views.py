@@ -400,5 +400,35 @@ Reply ONLY in JSON format like this:
 
         return Response(quiz_data)
 
+# ---------------------- user progress report ------------------------------------------------------
+from courses.models import Course
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
+def get_user_course_progress(user):
+    courses = Course.objects.filter(learner=user)
+    report = []
+
+    for course in courses:
+        subtopics = SubTopic.objects.filter(main_topic__course=course)
+        completed_count = subtopics.filter(completed=True).count()
+        total_count = subtopics.count()
+        progress = (completed_count / total_count * 100) if total_count else 0
+        score = round(progress)  # As percentage score
+
+        report.append({
+            'course_title': course.title,
+            'completed': completed_count,
+            'total': total_count,
+            'score': score
+        })
+    
+    return report
+
+
+
+@api_view(['GET'])
+def user_progress_report(request):
+    report = get_user_course_progress(request.user)
+    return Response(report)
 

@@ -31,6 +31,7 @@ import HabitTracker from './pages/learner/HabitTracker';
 import HabitPath from './components/habits/HabitPath';
 import LearnerMotivationPage from './pages/learner/LearnerMotivation';
 import LearnerReview from './pages/learner/LearnerAdminReview';
+import ProgressChart from './pages/learner/ProgressChart';
 
 
 // Mentor pages
@@ -111,6 +112,7 @@ export default function App() {
                 <Route path="habit/:habitId" element={<HabitPath />} />
                 <Route path="motivation" element={<LearnerMotivationPage />} />
                 <Route path="review-app" element={<LearnerReview />} />
+                <Route path="downloads" element={<ProgressChart />} />
               </Route>
             </Route>
 
