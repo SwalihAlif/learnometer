@@ -70,6 +70,7 @@ import AdminPremiumAndReferral from './pages/admin/AdminPremium';
 import PaymentAdminDashboard from './pages/admin/AdminPayments';
 import AdminReviewDashboard from './pages/admin/AdminReviewDashboard';
 import ReportAndCMS from './pages/admin/ReportsAndCMS';
+import AdminHabitDashboard from './pages/admin/AdminHabitDashboard';
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -158,6 +159,7 @@ export default function App() {
               <Route path="payments" element={<PaymentAdminDashboard />} />
               <Route path="reviews" element={<AdminReviewDashboard />} />
               <Route path="reports" element={<ReportAndCMS />} />
+              <Route path="habit" element={<AdminHabitDashboard />} />
               </Route>
             </Route>
 

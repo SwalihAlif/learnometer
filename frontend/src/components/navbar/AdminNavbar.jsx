@@ -29,10 +29,10 @@ const AdminNavbar = () => {
       </div>
 
       <div className="flex items-center space-x-4">
-        <button className="p-2 rounded-lg hover:bg-gray-800 transition-colors">
-          <BellIcon className="w-5 h-5" />
-        </button>
+    
+
         <NotificationBell />
+    
 
         {/* Logout Button */}
         <button

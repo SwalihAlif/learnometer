@@ -748,3 +748,45 @@ class SessionBookingExportPDF(BaseExportView):
 
 
 # Add more PDF export views for other models similarly.
+
+# --------------------------------- Admin - User's Habit Tracker ----------------------------------------------------
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from habits.models import Habit
+import logging
+
+logger = logging.getLogger(__name__)
+
+def admin_habit_report(request):
+    page_number = request.GET.get('page', 1)
+    page_size = 10  # 🔧 You can adjust this based on UI needs
+
+    habits = Habit.objects.prefetch_related('progress').select_related('learner')
+    paginator = Paginator(habits, page_size)
+    page = paginator.get_page(page_number)
+
+    data = []
+
+    for habit in page.object_list:
+        completed_days = habit.progress.filter(is_completed=True).count()
+        logger.info(f"[Habit Report] {habit.title} - Completed days: {completed_days}")
+
+        status = "Completed" if completed_days >= habit.total_days else "Not Completed"
+
+        data.append({
+            'learner': habit.learner.get_full_name(),    # Safely returns full_name or email
+            'habit': habit.title,
+            'days': habit.total_days,
+            'completed_days': completed_days,
+            'status': status
+        })
+
+    return JsonResponse({
+        'results': data,
+        'total_pages': paginator.num_pages,
+        'current_page': page.number,
+        'has_next': page.has_next(),
+        'has_previous': page.has_previous(),
+    })
+
+

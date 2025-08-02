@@ -18,6 +18,7 @@ from .views import (
     AdminDashboardStatsAPIView,
     AdminAddTestBalanceView, 
     random_daily_quote,
+    admin_habit_report,
     CreateAdminPaymentAccountView,
     CheckStripeOnboardingStatus,
     AdminReviewViewSet,
@@ -62,6 +63,8 @@ urlpatterns = [
     path('learner/motivation/daily-quote/', random_daily_quote),
     path("stripe/create/", CreateAdminPaymentAccountView.as_view(), name="admin-stripe-account-create"),
     path("stripe/onboarding-status/", CheckStripeOnboardingStatus.as_view(), name="admin-stripe-status"),
+    path('admin/habit-report/', admin_habit_report, name='admin-habit-report'),
+
 
 
 # for report and cms
