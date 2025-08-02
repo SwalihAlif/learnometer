@@ -30,6 +30,7 @@ import LearnerEarnings from './pages/learner/LearnerEarnings';
 import HabitTracker from './pages/learner/HabitTracker';
 import HabitPath from './components/habits/HabitPath';
 import LearnerMotivationPage from './pages/learner/LearnerMotivation';
+import LearnerReview from './pages/learner/LearnerAdminReview';
 
 
 // Mentor pages
@@ -43,6 +44,7 @@ import MentorChat from './pages/mentor/MentorChat';
 import MentorChatList from './pages/mentor/MentorChatList';
 import MentorVideoPage from './pages/mentor/MentorVideoPage';
 import MentorEarningsPage from './pages/mentor/MentorEarnings';
+import MentorReview from './pages/mentor/MentorAdminReview';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -65,6 +67,8 @@ import AdminBooksPage from './pages/admin/AdminBook';
 import AdminWallet from './pages/admin/AdminWallet';
 import AdminPremiumAndReferral from './pages/admin/AdminPremium';
 import PaymentAdminDashboard from './pages/admin/AdminPayments';
+import AdminReviewDashboard from './pages/admin/AdminReviewDashboard';
+import ReportAndCMS from './pages/admin/ReportsAndCMS';
 
 // Auth pages
 import LoginPage from "./components/auth/Login";
@@ -106,6 +110,7 @@ export default function App() {
                 <Route path="habits" element={<HabitTracker />} />
                 <Route path="habit/:habitId" element={<HabitPath />} />
                 <Route path="motivation" element={<LearnerMotivationPage />} />
+                <Route path="review-app" element={<LearnerReview />} />
               </Route>
             </Route>
 
@@ -122,6 +127,7 @@ export default function App() {
               <Route path="chat/:learnerId" element={<MentorChat />} />
               <Route path="meet/:sessionId" element={<MentorVideoPage />} />
               <Route path="earnings" element={<MentorEarningsPage />} />
+              <Route path="review-app" element={<MentorReview />} />
               </Route>
             </Route>
 
@@ -148,6 +154,8 @@ export default function App() {
               <Route path="wallet" element={<AdminWallet />} />
               <Route path="premium" element={<AdminPremiumAndReferral />} />
               <Route path="payments" element={<PaymentAdminDashboard />} />
+              <Route path="reviews" element={<AdminReviewDashboard />} />
+              <Route path="reports" element={<ReportAndCMS />} />
               </Route>
             </Route>
 

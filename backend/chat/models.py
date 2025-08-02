@@ -4,10 +4,6 @@ from django.db import models
 from django.conf import settings # Import settings to get AUTH_USER_MODEL
 from django.contrib.auth import get_user_model # Also good practice for direct User access if needed
 
-# If you have a User model in another app (e.g., 'accounts'),
-# you typically use settings.AUTH_USER_MODEL for ForeignKeys.
-# If you need to access the User model directly, use get_user_model().
-# For this ChatMessage model, settings.AUTH_USER_MODEL is appropriate.
 
 class ChatMessage(models.Model):
     """

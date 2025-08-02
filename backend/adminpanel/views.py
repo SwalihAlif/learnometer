@@ -16,6 +16,8 @@ from .serializers import SessionBookingAdminSerializer
 from .serializers import FeedbackSerializer
 from .serializers import ReviewSerializer
 from mentorship.models import StripeAccount
+from notification.utils import notify_admins_and_staff
+from django.http import HttpResponse
 
 
 # Create your views here.
@@ -202,36 +204,6 @@ class AdminAddTestBalanceView(APIView):
             logger.exception("Unexpected error while adding test balance.")
             return Response({"error": "Internal server error."}, status=500)
 
-
-# --------------------------------- Admin notifications
-
-
-from .models import AdminNotification
-from .serializers import AdminNotificationSerializer
-
-class AdminNotificationsListView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        notifications = AdminNotification.objects.order_by('-created_at')[:10]  
-        serializer = AdminNotificationSerializer(notifications, many=True)
-        return Response(serializer.data)
-
-
-class AdminNotificationMarkReadView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def post(self, request):
-        ids = request.data.get("notification_ids", [])
-
-        if not isinstance(ids, list):
-            return Response({"error": "notification_ids should be a list."}, status=400)
-
-        updated_count = AdminNotification.objects.filter(id__in=ids).update(is_read=True)
-
-        return Response({"message": f"{updated_count} notifications marked as read."})
-
-
 # -------------------------------- Admin Quotes CRUD ---------------------------------------------------------
 from rest_framework import viewsets
 from .models import MotivationalQuote
@@ -377,3 +349,402 @@ class CheckStripeOnboardingStatus(APIView):
             return Response({'onboarding_complete': onboarding_complete})
         except Exception as e:
             return Response({'error': str(e)}, status=400)
+        
+
+# ----------------------------
+# USER Review CRUD on the app
+# ----------------------------
+from rest_framework import viewsets, permissions
+from rest_framework.exceptions import PermissionDenied
+from .models import AdminReview
+from .serializers import AdminReviewSerializer
+
+class AdminReviewViewSet(viewsets.ModelViewSet):
+    serializer_class = AdminReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return AdminReview.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        review = serializer.save(user=self.request.user)
+        notify_admins_and_staff(
+            f"New review submitted by {self.request.user.email}: {review.rating}"
+        )
+
+    def perform_update(self, serializer):
+        if self.get_object().user != self.request.user:
+            raise PermissionDenied("You cannot edit someone else's review.")
+        review = serializer.save()
+        notify_admins_and_staff(
+            f"Review updated by {self.request.user.email}: {review.rating}"
+        )
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user:
+            raise PermissionDenied("You cannot delete someone else's review.")
+        instance.delete()
+
+# ----------------------------
+# Admin view the reviews
+# ----------------------------
+from rest_framework.permissions import IsAdminUser
+from rest_framework.viewsets import ReadOnlyModelViewSet
+from .models import AdminReview
+from .serializers import AdminReviewSerializer
+
+class AdminAllReviewsViewSet(ReadOnlyModelViewSet):
+    queryset = AdminReview.objects.select_related('user').all().order_by('-created_at')
+    serializer_class = AdminReviewSerializer
+    permission_classes = [IsAdminUser]
+
+
+
+# your_app_name/views.py
+from rest_framework import generics, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib.auth import get_user_model
+from django.db.models import F, ExpressionWrapper, DecimalField, Sum
+from django.utils import timezone
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from drf_excel.mixins import XLSXFileMixin
+from drf_excel.renderers import XLSXRenderer
+
+
+from .models import (
+    AdminReview,
+    MotivationalQuote, MotivationalVideo, MotivationalBook
+)
+from courses.models import Category, Course
+from users.models import Role, UserProfile
+from topics.models import Answer, MainTopic, SubTopic, Question, Schedule
+from mentorship.models import MentorAvailability, StripeAccount, Review, Feedback, SessionBooking
+from habits.models import Habit, HabitProgress
+from notification.models import Notification
+from premium.models import LearnerPremiumSubscription, ReferralCode, ReferralEarning, Wallet, WalletTransaction
+from .serializers import (
+    UserSerializer, UserProfileSerializer, RoleSerializer, CategorySerializer,
+    CourseSerializer, MainTopicSerializer, SubTopicSerializer, QuestionSerializer,
+    AnswerSerializer, ScheduleSerializer, MentorAvailabilitySerializer,
+    SessionBookingSerializer, StripeAccountSerializer, ReviewSerializer,
+    FeedbackSerializer, LearnerPremiumSubscriptionSerializer, ReferralCodeSerializer,
+    ReferralEarningSerializer, WalletSerializer, WalletTransactionSerializer,
+    HabitSerializer, HabitProgressSerializer, NotificationSerializer,
+    AdminReviewSerializer, MotivationalQuoteSerializer, MotivationalVideoSerializer,
+    MotivationalBookSerializer,
+    ConsolidatedUserReportSerializer, SessionBookingReportSerializer
+)
+
+User = get_user_model()
+
+# --- Custom Pagination Class (Optional, if you want specific page size controls) ---
+from rest_framework.pagination import PageNumberPagination
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+# --- General Report List Views (with pagination and filtering) ---
+
+class BaseReportListView(generics.ListAPIView):
+    permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = [] # To be defined by subclasses
+    ordering_fields = [] # To be defined by subclasses
+
+class UserReportListView(BaseReportListView):
+    queryset = User.objects.all().select_related('role', 'user_profile').prefetch_related('wallets')
+    serializer_class = ConsolidatedUserReportSerializer
+    search_fields = ['email', 'user_profile__full_name', 'role__name']
+    ordering_fields = ['email', 'created_at', 'role__name', 'is_active', 'total_wallet_balance'] # total_wallet_balance needs annotation for ordering
+
+
+class UserProfileReportListView(BaseReportListView):
+    queryset = UserProfile.objects.all().select_related('user')
+    serializer_class = UserProfileSerializer
+    search_fields = ['user__email', 'full_name', 'bio', 'phone']
+    ordering_fields = ['user__email', 'created_at']
+
+class CourseReportListView(BaseReportListView):
+    queryset = Course.objects.all().select_related('learner', 'category')
+    serializer_class = CourseSerializer
+    search_fields = ['title', 'description', 'learner__email', 'category__name']
+    ordering_fields = ['title', 'created_at']
+
+class MainTopicReportListView(BaseReportListView):
+    queryset = MainTopic.objects.all().select_related('course', 'created_by')
+    serializer_class = MainTopicSerializer
+    search_fields = ['title', 'description', 'course__title', 'created_by__email']
+    ordering_fields = ['title', 'created_at']
+
+class SubTopicReportListView(BaseReportListView):
+    queryset = SubTopic.objects.all().select_related('main_topic', 'created_by')
+    serializer_class = SubTopicSerializer
+    search_fields = ['title', 'description', 'main_topic__title', 'created_by__email']
+    ordering_fields = ['title', 'created_at', 'completed']
+
+class QuestionReportListView(BaseReportListView):
+    queryset = Question.objects.all().select_related('created_by', 'main_topic')
+    serializer_class = QuestionSerializer
+    search_fields = ['question_text', 'created_by__email', 'main_topic__title']
+    ordering_fields = ['created_at']
+
+class AnswerReportListView(BaseReportListView):
+    queryset = Answer.objects.all().select_related('created_by', 'question')
+    serializer_class = AnswerSerializer
+    search_fields = ['answer_text', 'created_by__email', 'question__question_text']
+    ordering_fields = ['created_at', 'is_ai_generated']
+
+class SessionBookingReportListView(BaseReportListView):
+    queryset = SessionBooking.objects.all().select_related('learner', 'mentor').prefetch_related('review', 'feedback')
+    serializer_class = SessionBookingReportSerializer
+    search_fields = ['learner__email', 'mentor__email', 'topic_focus', 'status', 'payment_status']
+    filterset_fields = ['status', 'payment_status', 'date']
+    ordering_fields = ['created_at', 'date', 'amount', 'status', 'payment_status']
+
+class ReviewReportListView(BaseReportListView):
+    queryset = Review.objects.all().select_related('reviewer', 'reviewee', 'session')
+    serializer_class = ReviewSerializer
+    search_fields = ['reviewer__email', 'reviewee__email', 'comment']
+    filterset_fields = ['rating']
+    ordering_fields = ['created_at', 'rating']
+
+class FeedbackReportListView(BaseReportListView):
+    queryset = Feedback.objects.all().select_related('giver', 'receiver', 'session')
+    serializer_class = FeedbackSerializer
+    search_fields = ['giver__email', 'receiver__email', 'message']
+    ordering_fields = ['created_at']
+
+class WalletTransactionReportListView(BaseReportListView):
+    queryset = WalletTransaction.objects.all().select_related('wallet__user')
+    serializer_class = WalletTransactionSerializer
+    search_fields = ['wallet__user__email', 'transaction_type', 'description']
+    filterset_fields = ['transaction_type']
+    ordering_fields = ['timestamp', 'amount']
+
+# Add more list views for other models as needed following the pattern above.
+# Example for MotivationalBook:
+class MotivationalBookReportListView(BaseReportListView):
+    queryset = MotivationalBook.objects.all()
+    serializer_class = MotivationalBookSerializer
+    search_fields = ['title']
+    ordering_fields = ['created_at']
+
+# --- Export Views (PDF and Excel) ---
+
+class BaseExportView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        # Override in subclasses to provide the base queryset
+        raise NotImplementedError
+
+    def get_serializer_class(self):
+        # Override in subclasses to provide the serializer class
+        raise NotImplementedError
+
+    def get_filtered_queryset(self):
+        queryset = self.get_queryset()
+        # Apply DjangoFilterBackend filters
+        filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+        for backend in filter_backends:
+            queryset = backend().filter_queryset(self.request, queryset, self)
+        return queryset
+
+class UserExportXLSX(XLSXFileMixin, BaseExportView):
+    serializer_class = ConsolidatedUserReportSerializer
+    filename = 'users_report.xlsx'
+    renderer_classes = (XLSXRenderer,)
+
+    def get_queryset(self):
+        view = UserReportListView()
+        return view.get_queryset()
+
+    def get_filtered_queryset(self):
+        # If BaseExportView has filtering logic, keep it
+        return super().get_filtered_queryset()
+
+    def get_serializer(self, *args, **kwargs):
+        """Required for XLSXRenderer"""
+        return self.serializer_class(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+
+
+
+
+class SessionBookingExportXLSX(XLSXFileMixin, BaseExportView):
+    serializer_class = SessionBookingReportSerializer
+    filename = 'session_bookings_report.xlsx'
+    renderer_classes = (XLSXRenderer,)
+
+    def get_queryset(self):
+        view = SessionBookingReportListView()
+        return view.get_queryset()
+
+    def get_filtered_queryset(self):
+        # If BaseExportView has filtering logic, keep it
+        return super().get_filtered_queryset()
+
+    def get_serializer(self, *args, **kwargs):
+        """Required for XLSXRenderer"""
+        return self.serializer_class(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+
+    
+class SessionBookingExportXLSX(XLSXFileMixin, BaseExportView):
+    serializer_class = SessionBookingReportSerializer
+    filename = 'session_bookings_report.xlsx'
+    renderer_classes = (XLSXRenderer,)
+
+    def get_queryset(self):
+        view = SessionBookingReportListView()
+        return view.get_queryset()
+
+    def get_filtered_queryset(self):
+        # If BaseExportView has filtering logic, keep it
+        return super().get_filtered_queryset()
+
+    def get_serializer(self, *args, **kwargs):
+        """Required for XLSXRenderer"""
+        return self.serializer_class(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+# Add more XLSX export views for other models similarly.
+
+class UserExportPDF(BaseExportView):
+    serializer_class = ConsolidatedUserReportSerializer
+
+    def get_queryset(self):
+        view = UserReportListView()
+        return view.get_queryset()
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+        data = serializer.data
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+
+        elements = []
+        elements.append(Paragraph("User Report", styles['h1']))
+        elements.append(Spacer(1, 0.2 * inch))
+
+        # Define table data
+        table_data = [['ID', 'Email', 'Role', 'Full Name', 'Active', 'Staff', 'Created At', 'Wallet Balance']]
+        for user_data in data:
+            table_data.append([
+                user_data.get('id', ''),
+                user_data.get('email', ''),
+                user_data.get('role', {}).get('name', '') if user_data.get('role') else '',
+                user_data.get('full_name', ''),
+                'Yes' if user_data.get('is_active') else 'No',
+                'Yes' if user_data.get('is_staff') else 'No',
+                user_data.get('created_at', '')[:10], # Just date
+                f"INR {user_data.get('total_wallet_balance', 0.00)}"
+            ])
+
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ])
+
+        table = Table(table_data)
+        table.setStyle(table_style)
+        elements.append(table)
+
+        doc.build(elements)
+        buffer.seek(0)
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="users_report.pdf"'
+        return response
+
+
+class SessionBookingExportPDF(BaseExportView):
+    serializer_class = SessionBookingReportSerializer
+
+    def get_queryset(self):
+        view = SessionBookingReportListView()
+        return view.get_queryset()
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+        data = serializer.data
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        inch = 72
+
+        elements = []
+        elements.append(Paragraph("Session Booking Report", styles['h1']))
+        elements.append(Spacer(1, 0.2 * inch))
+
+        table_data = [['ID', 'Learner', 'Mentor', 'Date', 'Time', 'Amount', 'Status', 'Payment Status']]
+        for session_data in data:
+            table_data.append([
+                session_data.get('id', ''),
+                session_data.get('learner_full_name', session_data.get('learner_email', '')),
+                session_data.get('mentor_full_name', session_data.get('mentor_email', '')),
+                session_data.get('date', ''),
+                f"{session_data.get('start_time', '')} - {session_data.get('end_time', '')}",
+                f"INR {session_data.get('amount', 0.00)}",
+                session_data.get('status_display', ''),
+                session_data.get('payment_status_display', '')
+            ])
+
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ])
+
+        table = Table(table_data)
+        table.setStyle(table_style)
+        elements.append(table)
+
+        doc.build(elements)
+        buffer.seek(0)
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="session_bookings_report.pdf"'
+        return response
+
+
+# Add more PDF export views for other models similarly.

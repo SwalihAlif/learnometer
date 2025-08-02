@@ -63,25 +63,3 @@ axiosInstance.interceptors.response.use(
 
 export default axiosInstance;
 
-
-
-
-
-
-
-// axiosInstance.interceptors.response.use(
-//   response => response,
-//   async error => {
-//     if (error.response?.status === 401) {
-//       try {
-//         await axiosInstance.post('users/token/refresh/');
-
-//         const config = error.config;
-//         return axiosInstance(config);
-//       } catch (refreshError) {
-//         return Promise.reject(refreshError);
-//       }
-//     }
-//     return Promise.reject(error);
-//   }
-// );

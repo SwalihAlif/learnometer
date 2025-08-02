@@ -18,6 +18,7 @@ const MentorSidebar = () => {
     { name: 'Manage Availability', icon: Clock, path: '/mentor/manage-availability' },
     { name: 'Feedback', icon: MessageSquare, path: '/mentor/feedback' },
     { name: 'Reviews', icon: Star, path: '/mentor/reviews' },
+    { name: 'Suggestions', icon: Star, path: '/mentor/review-app' },
     // { name: 'Chat', icon: Video, path: '/mentor/chat' },
     { name: 'Messages', icon: MessageCircle, path: 'chat-list' },
     { name: 'Earnings', icon: DollarSign, path: '/mentor/earnings' },

@@ -15,7 +15,6 @@ class MainTopic(models.Model):
         return self.title
     
 
-
 class SubTopic(models.Model):
     main_topic = models.ForeignKey('MainTopic', on_delete=models.CASCADE, related_name='subtopics')
     title = models.CharField(max_length=255)
