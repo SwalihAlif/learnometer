@@ -16,6 +16,7 @@ const BookMentorSession = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [slots, setSlots] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const SLOTS_PER_PAGE = 5;
 
   const stripe = useStripe();
@@ -75,87 +76,88 @@ const BookMentorSession = () => {
 
 
 
-const handleBook = async (slot) => {
-  if (!stripe || !elements) {
-    toast.error("❌ Stripe is not ready");
-    return;
-  }
-
-  const now = new Date();
-  const slotStart = new Date(`${slot.date}T${slot.start_time}`);
-  if (isBefore(slotStart, now)) {
-    toast.error("⏰ This slot is in the past.");
-    return;
-  }
-
-  try {
-    const payload = {
-      type: "session",
-      mentor_id: mentor.user_id,
-      date: slot.date,
-      start_time: slot.start_time,
-      end_time: slot.end_time,
-      amount: slot.session_price || 500.0,
-    };
-
-    console.log("Slot amount:", slot.session_price);
-
-    // 🧾 Step 1: Create PaymentIntent from backend
-    const res = await axiosInstance.post("mentorship/book-session/", payload);
-    const { clientSecret, bookingId } = res.data;
-    console.log("✅ PaymentIntent created:", res.data);
-
-    // 💳 Step 2: Confirm card payment
-    const result = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: {
-        card: elements.getElement(CardElement),
-      },
-    });
-
-    console.log("💬 Stripe confirm result:", result);
-
-    // 🎯 Step 3: Handle payment outcome
-    if (result.error) {
-      toast.error(result.error.message || "❌ Payment failed");
-    } else {
-      const status = result.paymentIntent?.status;
-
-      switch (status) {
-        case "succeeded":
-          toast.success("🎉 Payment successful! Session booked.");
-          fetchSlotsForDate(selectedDate);
-          break;
-
-        case "requires_capture":
-          toast.success("✅ Payment authorized. Capture required.");
-          break;
-
-        case "requires_action":
-          toast("⚠️ Additional authentication required.");
-          break;
-
-        default:
-          toast.error(`⚠️ Unexpected status: ${status}`);
-      }
+  const handleBook = async (slot) => {
+    if (!stripe || !elements) {
+      toast.error("❌ Stripe is not ready");
+      return;
     }
 
-  } catch (err) {
-    if (err.response?.data) {
-      const { error, onboarding_url } = err.response.data;
-      console.error("❌ Booking failed:", err.response.data);
-
-      toast.error(error || "Booking or payment failed.");
-
-      if (onboarding_url) {
-        toast("⚠️ Mentor not onboarded to Stripe. Redirecting...");
-        window.open(onboarding_url, "_blank");
-      }
-    } else {
-      toast.error("❌ Booking or payment failed due to server issue.");
-      console.error("❗ Unknown Stripe booking error", err);
+    const now = new Date();
+    const slotStart = new Date(`${slot.date}T${slot.start_time}`);
+    if (isBefore(slotStart, now)) {
+      toast.error("⏰ This slot is in the past.");
+      return;
     }
-  }
-};
+
+    try {
+      const payload = {
+        type: "session",
+        mentor_id: mentor.user_id,
+        date: slot.date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        amount: slot.session_price || 500.0,
+      };
+
+      console.log("Slot amount:", slot.session_price);
+
+      // 🧾 Step 1: Create PaymentIntent from backend
+      const res = await axiosInstance.post("mentorship/book-session/", payload);
+      const { clientSecret, bookingId } = res.data;
+      console.log("✅ PaymentIntent created:", res.data);
+
+      // 💳 Step 2: Confirm card payment
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        },
+      });
+
+      console.log("💬 Stripe confirm result:", result);
+
+      // 🎯 Step 3: Handle payment outcome
+      if (result.error) {
+        toast.error(result.error.message || "❌ Payment failed");
+      } else {
+        const status = result.paymentIntent?.status;
+
+        switch (status) {
+          case "succeeded":
+            toast.success("🎉 Payment successful! Session booked.");
+            fetchSlotsForDate(selectedDate);
+            break;
+
+          case "requires_capture":
+            toast.success("✅ Payment authorized. Capture required.");
+            setShowSuccessModal(true)
+            break;
+
+          case "requires_action":
+            toast("⚠️ Additional authentication required.");
+            break;
+
+          default:
+            toast.error(`⚠️ Unexpected status: ${status}`);
+        }
+      }
+
+    } catch (err) {
+      if (err.response?.data) {
+        const { error, onboarding_url } = err.response.data;
+        console.error("❌ Booking failed:", err.response.data);
+
+        toast.error(error || "Booking or payment failed.");
+
+        if (onboarding_url) {
+          toast("⚠️ Mentor not onboarded to Stripe. Redirecting...");
+          window.open(onboarding_url, "_blank");
+        }
+      } else {
+        toast.error("❌ Booking or payment failed due to server issue.");
+        console.error("❗ Unknown Stripe booking error", err);
+      }
+    }
+  };
 
 
 
@@ -195,18 +197,18 @@ const handleBook = async (slot) => {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
                     {mentor.full_name}
                   </h2>
-                  
+
                   {mentor.bio && (
                     <p className="text-gray-600 mb-4 leading-relaxed">
                       {mentor.bio}
                     </p>
                   )}
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center mb-2">
@@ -217,7 +219,7 @@ const handleBook = async (slot) => {
                         {mentor.experience_years} years
                       </p>
                     </div>
-                    
+
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center mb-2">
                         <span className="text-2xl mr-2">📚</span>
@@ -227,7 +229,7 @@ const handleBook = async (slot) => {
                         {mentor.session_count} completed
                       </p>
                     </div>
-                    
+
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center mb-2">
                         <span className="text-2xl mr-2">⭐</span>
@@ -238,7 +240,7 @@ const handleBook = async (slot) => {
                       </p>
                     </div>
                   </div>
-                  
+
                   {mentor.languages_known && mentor.languages_known.length > 0 && (
                     <div className="mt-4">
                       <span className="text-sm font-medium text-gray-500 mb-2 block">Languages:</span>
@@ -254,7 +256,7 @@ const handleBook = async (slot) => {
                       </div>
                     </div>
                   )}
-                  
+
                   {mentor.preferred_categories && mentor.preferred_categories.length > 0 && (
                     <div className="mt-4">
                       <span className="text-sm font-medium text-gray-500 mb-2 block">Expertise:</span>
@@ -283,7 +285,7 @@ const handleBook = async (slot) => {
               <span className="text-2xl mr-3">📅</span>
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Select a Date</h3>
             </div>
-            
+
             <div className="calendar-container">
               <Calendar
                 onChange={(date) => {
@@ -296,7 +298,7 @@ const handleBook = async (slot) => {
                 className="w-full"
               />
             </div>
-            
+
             <div className="mt-6 text-sm text-gray-600">
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center">
@@ -325,7 +327,7 @@ const handleBook = async (slot) => {
                     Available Slots
                   </h4>
                 </div>
-                
+
                 <div className="mb-4 p-4 bg-blue-50 rounded-lg">
                   <p className="text-blue-800 font-medium">
                     {selectedDate.toLocaleDateString("en-IN", {
@@ -366,32 +368,31 @@ const handleBook = async (slot) => {
                                 </span>
                               </div>
                             </div>
-                            
+
                             <button
                               onClick={() => handleBook(slot)}
                               disabled={slot.is_booked}
-                              className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                                slot.is_booked
+                              className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${slot.is_booked
                                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                   : "bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                              }`}
+                                }`}
                             >
                               {slot.is_booked ? "Already Booked" : "Book Now"}
                             </button>
                           </div>
                         </div>
                       ))}
-                      </div>
+                    </div>
 
 
-                      {/* Stripe card */}
-                      <div className="mt-6 border rounded-md p-4">
-                        <h3 className="text-lg font-bold mb-2">Enter your card details</h3>
-                        <CardElement className="p-2 border rounded-md" />
-                      </div>
+                    {/* Stripe card */}
+                    <div className="mt-6 border rounded-md p-4">
+                      <h3 className="text-lg font-bold mb-2">Enter your card details</h3>
+                      <CardElement className="p-2 border rounded-md" />
+                    </div>
 
 
-                      {/* Pagination */}
+                    {/* Pagination */}
                     {totalPages > 1 && (
                       <div className="flex justify-center mt-8">
                         <div className="flex gap-2">
@@ -399,11 +400,10 @@ const handleBook = async (slot) => {
                             <button
                               key={pg}
                               onClick={() => setCurrentPage(pg)}
-                              className={`w-10 h-10 rounded-full font-semibold transition-all duration-200 ${
-                                pg === currentPage
+                              className={`w-10 h-10 rounded-full font-semibold transition-all duration-200 ${pg === currentPage
                                   ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md"
                                   : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              }`}
+                                }`}
                             >
                               {pg}
                             </button>
@@ -423,7 +423,54 @@ const handleBook = async (slot) => {
           </div>
         </div>
       </div>
-      
+
+      {showSuccessModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+    <div className="relative bg-white rounded-2xl p-8 w-[90%] max-w-md text-center shadow-2xl border border-green-200">
+      {/* Confetti particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-2 h-2 bg-green-400 rounded-full animate-bounce"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDuration: `${1 + Math.random()}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Success Icon */}
+<div className="text-green-500 text-5xl mb-4">✅</div>
+<h2 className="text-xl font-bold text-gray-800 mb-2">Payment Authorized!</h2>
+<p className="text-gray-600 mb-6">You have successfully booked the session.</p>
+
+<h3 className="text-indigo-600 font-semibold text-lg mb-2">💡 Important Payment Info</h3>
+<p className="text-indio-600 mb-4">
+  The session fee has been authorized, but not yet charged to your account. Only after the session the money will be debited from your account.
+</p>
+<p className="text-green-600 mb-6">
+  If the session is cancelled or rejected before completion, the hold will be released and no money will be debited from your account.
+</p>
+
+
+      {/* Button */}
+      <button
+        onClick={() => {
+          setShowSuccessModal(false);
+          window.location.href = "/learner/my-sessions";
+        }}
+        className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-all duration-200"
+      >
+        Go to your sessions
+      </button>
+    </div>
+  </div>
+)}
+
+
       <style jsx>{`
         .calendar-container .react-calendar {
           width: 100%;
