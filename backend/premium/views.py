@@ -384,6 +384,18 @@ class WalletTransactionListAPIView(APIView):
 
         serializer = WalletTransactionSerializer(transactions, many=True)
         return Response(serializer.data)
+# ----------------------------
+# Admin wallet transactions
+# ----------------------------
+class AdminWalletTransactionListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wallet = get_object_or_404(Wallet, user=request.user, wallet_type='platform_fees')
+        transactions = wallet.transactions.all() 
+
+        serializer = WalletTransactionSerializer(transactions, many=True)
+        return Response(serializer.data)
     
 
 # ----------------------------
@@ -401,6 +413,30 @@ class WithdrawFundsAPIView(APIView):
             return Response({"error": "Invalid amount."}, status=400)
 
         wallet = Wallet.objects.filter(user=request.user, wallet_type='earnings').first()
+        if not wallet:
+            return Response({"error": "Earnings wallet not found."}, status=404)
+
+        try:
+            wallet.withdraw_funds(amount, description="User-initiated withdrawal")
+        except ValidationError as ve:
+            return Response({"error": str(ve)}, status=400)
+
+        return Response({"message": f"₹{amount} withdrawn successfully."}, status=200)
+# ----------------------------
+# Admin wallet withdraw
+# ----------------------------
+
+class AdminWithdrawFundsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        amount = request.data.get('amount')
+        try:
+            amount = Decimal(amount)
+        except:
+            return Response({"error": "Invalid amount."}, status=400)
+
+        wallet = Wallet.objects.filter(user=request.user, wallet_type='platform_fees').first()
         if not wallet:
             return Response({"error": "Earnings wallet not found."}, status=404)
 

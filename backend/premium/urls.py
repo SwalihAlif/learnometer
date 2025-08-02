@@ -13,6 +13,8 @@ from .views import (
 
     # adminpanel ---------------------------------------------------------------------------------
     AdminWalletAPIView,
+    AdminWalletTransactionListAPIView,
+    AdminWithdrawFundsAPIView,
     PremiumReferralSummaryAPIView,
     PremiumSubscriptionListAPIView,
     ReferralEarningListAPIView,
@@ -33,7 +35,10 @@ urlpatterns = [
 
     # for adminpanel ------------------------------------------------------------------------------
 
-    path("admin/wallet/", AdminWalletAPIView.as_view(), name="user-wallet"),
+    path("admin/wallet/", AdminWalletAPIView.as_view(), name="admin-wallet"),
+    path('admin/wallet/transactions/', AdminWalletTransactionListAPIView.as_view(), name='admin-wallet-transactions'),
+    path('admin/wallet/withdraw/', AdminWithdrawFundsAPIView.as_view(), name='admin-wallet-withdraw'),
+
     path('admin/premium-summary/', PremiumReferralSummaryAPIView.as_view(), name='premium-summary'),
     path('admin/premium-subscriptions/', PremiumSubscriptionListAPIView.as_view(), name='premium-subscriptions'),
     path('admin/referral-earnings/', ReferralEarningListAPIView.as_view(), name='referral-earnings'),
