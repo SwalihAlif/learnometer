@@ -372,7 +372,6 @@ class AdminWalletAPIView(APIView):
         return Response(serializer.data)
     
 
-
 # ----------------------------
 # User wallet transactions
 # ----------------------------
@@ -381,7 +380,7 @@ class WalletTransactionListAPIView(APIView):
 
     def get(self, request):
         wallet = get_object_or_404(Wallet, user=request.user, wallet_type='earnings')
-        transactions = wallet.transactions.all()  # Already ordered by -timestamp in Meta
+        transactions = wallet.transactions.all() 
 
         serializer = WalletTransactionSerializer(transactions, many=True)
         return Response(serializer.data)
@@ -478,7 +477,6 @@ class ReferralEarningListAPIView(generics.ListAPIView):
 
 # --------------------------------------- Admin Payment dash
 
-# views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -562,11 +560,3 @@ class AdminPaymentTransactionListView(ListAPIView):
         
         return queryset.order_by('-timestamp')
 
-# urls.py
-from django.urls import path
-from .views import AdminPaymentMetricsView, AdminPaymentTransactionListView
-
-urlpatterns = [
-    path('api/wallet/metrics/', AdminPaymentMetricsView.as_view(), name='wallet-metrics'),
-    path('api/wallet/transactions/', AdminPaymentTransactionListView.as_view(), name='wallet-transactions'),
-]

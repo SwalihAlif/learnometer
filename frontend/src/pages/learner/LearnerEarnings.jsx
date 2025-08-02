@@ -1,17 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
-// import { Button } from '@/components/ui/button'; // Optional: if you're using a button component library
 import axiosInstance from '../../axios';
 import { FaWallet } from 'react-icons/fa';
+import { X } from 'lucide-react';
 
 const LearnerEarnings = () => {
 
   const [walletBalance, setWalletBalance] = useState(523.75);
   const [isStripeOnboarded, setIsStripeOnboarded] = useState(false); 
   const [transactions, setTransactions] = useState([]);
-
-    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  const [showAllTransactionsModal, setShowAllTransactionsModal] = useState(false);
+const [currentPage, setCurrentPage] = useState(1);
+const itemsPerPage = 10;
 
     useEffect(() => {
     fetchOnboardingStatus();
@@ -100,18 +103,17 @@ const fetchWalletTransactions = async () => {
     }
   };
 
-  const handleSeeAll = () => {
-  // You can navigate to a full transaction history page here
-  console.log("See All clicked");
-  // Example with React Router:
-  // navigate('/admin/withdrawals'); 
+const handleSeeAll = () => {
+  setShowAllTransactionsModal(true);
+  setCurrentPage(1); // reset to first page
 };
+
 return (
   <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
     <div className="w-full max-w-md bg-gray-800 shadow-lg rounded-2xl p-6 space-y-6">
       <div className="flex items-center space-x-3">
         <FaWallet className="text-yellow-400 text-3xl" />
-        <h2 className="text-2xl font-bold">Admin Wallet</h2>
+        <h2 className="text-2xl font-bold">Learner Wallet</h2>
       </div>
   
       <div className="text-center">
@@ -194,6 +196,69 @@ className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-no
     </div>
   </div>
 )}
+
+
+{showAllTransactionsModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center">
+    <div className="bg-white text-black rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6 relative">
+      <button
+        className="absolute top-2 right-4 text-gray-500 hover:text-red-600 text-xl"
+        onClick={() => setShowAllTransactionsModal(false)}
+      >
+         <X size={24} />
+      </button>
+
+      <h2 className="text-xl font-bold mb-4">All Transactions</h2>
+
+      <div className="space-y-3">
+        {transactions
+          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+          .map((transaction, index) => (
+            <div
+              key={index}
+              className="flex justify-between items-center border-b pb-1 text-sm"
+            >
+              <span>{transaction.timestamp.slice(0, 10)}</span>
+              <span>${parseFloat(transaction.amount).toFixed(2)}</span>
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  transaction.transaction_type === 'credit_referral'
+                    ? 'bg-green-500 text-white'
+                    : transaction.transaction_type === 'debit_payout'
+                    ? 'bg-yellow-500 text-black'
+                    : 'bg-red-500 text-white'
+                }`}
+              >
+                {transaction.transaction_type}
+              </span>
+            </div>
+          ))}
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex justify-between items-center mt-4">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((p) => p - 1)}
+          className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
+        >
+          Prev
+        </button>
+        <span className="text-sm">
+          Page {currentPage} of {Math.ceil(transactions.length / itemsPerPage)}
+        </span>
+        <button
+          disabled={currentPage >= Math.ceil(transactions.length / itemsPerPage)}
+          onClick={() => setCurrentPage((p) => p + 1)}
+          className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
 
   </div>

@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from 'react';
-// import { Button } from '@/components/ui/button'; // Optional: if you're using a button component library
 import axiosInstance from '../../axios';
 import { FaWallet } from 'react-icons/fa';
+import { X } from 'lucide-react';
 
 export default function MentorEarningsPage() {
-      const [walletBalance, setWalletBalance] = useState(523.75);
+  const [walletBalance, setWalletBalance] = useState(523.75);
   const [isStripeOnboarded, setIsStripeOnboarded] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
 
-  const withdrawals = [
-  { id: 1, amount: 50.0, status: 'Success', date: '2025-07-28' },
-  { id: 2, amount: 30.5, status: 'Pending', date: '2025-07-27' },
-  { id: 3, amount: 20.0, status: 'Failed', date: '2025-07-26' },
-  { id: 4, amount: 40.25, status: 'Success', date: '2025-07-25' },
-  { id: 5, amount: 10.75, status: 'Success', date: '2025-07-24' },
-];
-
+  const [showAllTransactionsModal, setShowAllTransactionsModal] = useState(false);
+const [currentPage, setCurrentPage] = useState(1);
+const itemsPerPage = 10;
 
 
     useEffect(() => {
     fetchOnboardingStatus();
     fetchWalletAmount();
+    fetchWalletTransactions();
   }, []);
 
   const fetchOnboardingStatus = async () => {
@@ -62,17 +61,52 @@ const fetchWalletAmount = async () => {
   }
 }
 
-  const handleWithdraw = () => {
-    // Call backend to trigger withdrawal
-    alert('Withdrawal request submitted.');
+const fetchWalletTransactions = async () => {
+  try {
+    const response = await axiosInstance.get('premium/wallet/transactions/');
+    console.log("Wallet transactions:", response.data);
+    setTransactions(response.data);
+  } catch (err) {
+    console.error('Failed to fetch wallet transactions:', err);
+  }
+};
+
+
+  const handleWithdraw = async () => {
+    if (!withdrawAmount || isNaN(withdrawAmount)) {
+      alert("Please enter a valid number.");
+      return;
+    }
+
+    const amount = parseFloat(withdrawAmount);
+
+    if (amount <= 0 || amount > walletBalance) {
+      alert("Invalid withdrawal amount.");
+      return;
+    }
+
+    try {
+      await axiosInstance.post('premium/wallet/withdraw/', {
+        amount,
+      });
+
+      alert('Successfully withdrawed to your account.');
+
+      setWalletBalance((prev) => prev - amount);
+      setWithdrawAmount('');
+      setShowWithdrawModal(false);
+      fetchWalletTransactions(); // refresh transactions
+    } catch (err) {
+      console.error('Withdrawal failed:', err);
+      alert('Failed to withdraw. Try again.');
+    }
   };
 
-  const handleSeeAll = () => {
-  // You can navigate to a full transaction history page here
-  console.log("See All clicked");
-  // Example with React Router:
-  // navigate('/admin/withdrawals'); 
+const handleSeeAll = () => {
+  setShowAllTransactionsModal(true);
+  setCurrentPage(1); // reset to first page
 };
+
 return (
   <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
     <div className="w-full max-w-md bg-gray-800 shadow-lg rounded-2xl p-6 space-y-6">
@@ -89,7 +123,7 @@ return (
           </div>
 
           <button
-            onClick={handleWithdraw}
+            onClick={() => setShowWithdrawModal(true)}
             className="w-full bg-blue-600 hover:bg-blue-700 transition rounded-lg py-2 text-white font-semibold"
           >
             Withdraw Funds
@@ -97,22 +131,22 @@ return (
 
           {/* Withdrawal History */}
           <div className="bg-gray-700 p-4 rounded-lg mt-4">
-            <h4 className="text-lg font-semibold mb-2">Recent Withdrawals</h4>
+            <h4 className="text-lg font-semibold mb-2">Recent Transactions</h4>
             <div className="max-h-48 overflow-y-auto space-y-2">
-              {withdrawals.slice(0, 10).map((withdrawal, index) => (
+              {transactions.slice(0, 10).map((transaction, index) => (
                 <div key={index} className="flex justify-between items-center border-b border-gray-600 pb-1">
-                  <span className="text-sm">{withdrawal.date}</span>
-                  <span className="text-sm">${withdrawal.amount.toFixed(2)}</span>
+                  <span className="text-sm">{transaction.timestamp.slice(0, 10)}</span>
+                  <span className="text-sm">${parseFloat(transaction.amount).toFixed(2)}</span>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
-                      withdrawal.status === 'Success'
+                      transaction.transaction_type === 'credit_session_fee'
                         ? 'bg-green-500'
-                        : withdrawal.status === 'Pending'
+                        : transaction.transaction_type === 'debit_payout'
                         ? 'bg-yellow-500'
                         : 'bg-red-500'
                     }`}
                   >
-                    {withdrawal.status}
+                    {transaction.transaction_type}
                   </span>
                 </div>
               ))}
@@ -133,6 +167,99 @@ return (
         </button>
       )}
     </div>
+
+{/* Withdraw Modal */}
+{showWithdrawModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-6 rounded-2xl shadow-xl w-80">
+      <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">Withdraw Amount</h3>
+      <input
+        type="number"
+        value={withdrawAmount}
+        onChange={(e) => setWithdrawAmount(e.target.value)}
+        placeholder="Enter amount"
+className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 text-gray-800 placeholder-gray-500"
+      />
+      <div className="flex justify-between">
+        <button
+          onClick={handleWithdraw}
+          className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+        >
+          Submit
+        </button>
+        <button
+          onClick={() => setShowWithdrawModal(false)}
+          className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{showAllTransactionsModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center">
+    <div className="bg-white text-black rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6 relative">
+      <button
+        className="absolute top-2 right-4 text-gray-500 hover:text-red-600 text-xl"
+        onClick={() => setShowAllTransactionsModal(false)}
+      >
+       <X size={24} />
+      </button>
+
+      <h2 className="text-xl font-bold mb-4">All Transactions</h2>
+
+      <div className="space-y-3">
+        {transactions
+          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+          .map((transaction, index) => (
+            <div
+              key={index}
+              className="flex justify-between items-center border-b pb-1 text-sm"
+            >
+              <span>{transaction.timestamp.slice(0, 10)}</span>
+              <span>${parseFloat(transaction.amount).toFixed(2)}</span>
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  transaction.transaction_type === 'credit_referral'
+                    ? 'bg-green-500 text-white'
+                    : transaction.transaction_type === 'debit_payout'
+                    ? 'bg-yellow-500 text-black'
+                    : 'bg-red-500 text-white'
+                }`}
+              >
+                {transaction.transaction_type}
+              </span>
+            </div>
+          ))}
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex justify-between items-center mt-4">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((p) => p - 1)}
+          className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
+        >
+          Prev
+        </button>
+        <span className="text-sm">
+          Page {currentPage} of {Math.ceil(transactions.length / itemsPerPage)}
+        </span>
+        <button
+          disabled={currentPage >= Math.ceil(transactions.length / itemsPerPage)}
+          onClick={() => setCurrentPage((p) => p + 1)}
+          className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
   </div>
 );
 

@@ -9,7 +9,6 @@ from .views import (
     FeedbackUploadAPIView, 
     FeedbackBySessionAPIView, FeedbackRetrieveAPIView,
     CheckingUploadView,
-    MentorWalletView, MentorPayoutRequestView,
     StripeWebhookView,
     CreateMentorPaymentAccountView, 
     CheckMentorStripeOnboardingStatus,
@@ -43,9 +42,6 @@ urlpatterns = [
     path("feedbacks/", FeedbackUploadAPIView.as_view(), name="feedback-create"),
     path('feedbacks/session/<int:session_id>/', FeedbackBySessionAPIView.as_view(), name='feedback-by-session'),
     path('feedbacks/<int:feedback_id>/', FeedbackRetrieveAPIView.as_view(), name='feedback-detail'),
-
-    path('mentor/wallet-balance/', MentorWalletView.as_view(), name='mentor-wallet-balance'),
-    path('mentor/request-payout/', MentorPayoutRequestView.as_view(), name='mentor-request-payout'),
 
 
 
