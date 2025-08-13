@@ -86,6 +86,7 @@ const LearnerMyCourses = () => {
         setShowCategorySuggestions(false);
 
         dispatch(showToast({ message: 'Course created successfully!', type: 'success' }));
+        dispatch(fetchPaginatedData({ url: 'courses', page: 1 }));
 
       } catch (err) {
         console.error('Error creating course:', err);
@@ -349,7 +350,9 @@ const handleDeleteCourse = (courseId) => {
                         <Trash2 className="w-4 h-4 mr-1" />
                         Delete
                       </button>
-                      <button className="flex-1 bg-[#FACC15] text-[#1E1B4B] px-3 py-2 rounded-lg hover:bg-[#EAB308] transition-colors text-sm font-medium flex items-center justify-center">
+                      <button 
+                      onClick={() => navigate('/learner/all-mentors')}   
+                      className="flex-1 bg-[#FACC15] text-[#1E1B4B] px-3 py-2 rounded-lg hover:bg-[#EAB308] transition-colors text-sm font-medium flex items-center justify-center">
                         <Users className="w-4 h-4 mr-1" />
                         View Mentors
                       </button>

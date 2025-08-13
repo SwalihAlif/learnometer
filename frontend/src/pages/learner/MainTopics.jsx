@@ -6,6 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { showDialog } from '../../redux/slices/confirmDialogSlice'
 import { fetchPaginatedData } from '../../redux/slices/paginationSlice';
 import Pagination from '../../components/common/Pagination';
+import { Link } from 'react-router-dom';
 
 const MainTopics = () => {
   const navigate = useNavigate();
@@ -151,7 +152,11 @@ const handleDeleteTopic = (id) => {
       {/* Breadcrumb */}
       <div className="mb-4">
         <p className="text-sm text-gray-500">
-          My Courses / {course ? course.title : '...'} / Main Topics
+          <Link to="/learner/my-courses" className="text-blue-600 hover:underline">
+            My Courses
+          </Link>
+          {' / '}
+          {course ? course.title : '...'} / Main Topics
         </p>
       </div>
 

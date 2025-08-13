@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 import { showDialog } from '../../redux/slices/confirmDialogSlice';
+import { showToast } from '../../redux/slices/toastSlice';
+import Toast from '../../components/common/Toast';
 import {
     getQuestionsByTopic,
     postQuestion,
@@ -425,6 +427,7 @@ const NotesPage = () => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-indigo-100">
                             {/* Modal Header */}
+                            <Toast />
                             <div className="bg-gradient-to-r from-indigo-600 to-yellow-500 p-6 text-white relative">
                                 <button
                                     onClick={() => setShowAiModal(false)}
@@ -465,7 +468,16 @@ const NotesPage = () => {
                                     <div className="bg-gradient-to-br from-gray-50 to-indigo-50 border-2 border-indigo-100 rounded-xl p-5 max-h-80 overflow-auto">
                                         <p className="text-indigo-900 leading-relaxed whitespace-pre-wrap">{aiText}</p>
                                         <button
-                                            onClick={() => navigator.clipboard.writeText(aiText)}
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(aiText)
+                                                    .then(() => {
+                                                        dispatch(showToast({ message: 'Copied to clipboard!', type: 'success' }));
+                                                        console.log("Copied")
+                                                    })
+                                                    .catch(() => {
+                                                        dispatch(showToast({ message: 'Failed to copy.', type: 'error' }));
+                                                    });
+                                            }}
                                             className="mt-4 flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium transition-colors duration-200"
                                         >
                                             <Copy className="w-4 h-4" />
@@ -480,36 +492,35 @@ const NotesPage = () => {
             </div>
 
             <div className="flex justify-center gap-2 mt-6">
-  <button
-    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-    disabled={currentPage === 1}
-    className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-  >
-    Previous
-  </button>
+                <button
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                >
+                    Previous
+                </button>
 
-  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-    <button
-      key={pageNum}
-      onClick={() => setCurrentPage(pageNum)}
-      className={`px-4 py-2 rounded ${
-        currentPage === pageNum
-          ? "bg-indigo-600 text-white"
-          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-      }`}
-    >
-      {pageNum}
-    </button>
-  ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-4 py-2 rounded ${currentPage === pageNum
+                                ? "bg-indigo-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                    >
+                        {pageNum}
+                    </button>
+                ))}
 
-  <button
-    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-    disabled={currentPage === totalPages}
-    className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-  >
-    Next
-  </button>
-</div>
+                <button
+                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                >
+                    Next
+                </button>
+            </div>
 
 
 

@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { showDialog } from '../../redux/slices/confirmDialogSlice';
 import { fetchPaginatedData } from '../../redux/slices/paginationSlice';
 import Pagination from '../../components/common/Pagination';
+import { Link } from 'react-router-dom';
 import {
   Check, Plus, Edit, Trash2, BookOpen, TrendingUp,
 } from 'lucide-react';
@@ -27,8 +28,8 @@ const SubTopics = () => {
   const [totalCount, setTotalCount] = useState(0);
 
   const [courseName, setCourseName] = useState('');
-const [mainTopicTitle, setMainTopicTitle] = useState('');
-
+  const [mainTopicTitle, setMainTopicTitle] = useState('');
+  const [courseId, setCourseId] = useState(null);
   const remainingCount = totalCount - completedCount;
 
   // 1. Fetch paginated subtopics for list
@@ -52,23 +53,23 @@ const [mainTopicTitle, setMainTopicTitle] = useState('');
 
 
   const fetchProgressMetrics = async () => {
-  try {
-    const res = await axiosInstance.get(`topics/progress/subtopics/?main_topic_id=${mainTopicId}`);
-    const completed = res.data.completed;
-    const total = res.data.total;
+    try {
+      const res = await axiosInstance.get(`topics/progress/subtopics/?main_topic_id=${mainTopicId}`);
+      const completed = res.data.completed;
+      const total = res.data.total;
 
-    setCompletedCount(completed);
-    setTotalCount(total);
-    setChartData([
-      { name: 'Completed', value: completed, color: '#16A34A' },
-      { name: 'Remaining', value: total - completed, color: '#9CA3AF' },
-    ]);
-    console.log("Total from allSubtopics.length:", total);
-console.log("Total from response.count:", completed);
-  } catch (err) {
-    console.error('Failed to fetch progress metrics:', err);
-  }
-};
+      setCompletedCount(completed);
+      setTotalCount(total);
+      setChartData([
+        { name: 'Completed', value: completed, color: '#16A34A' },
+        { name: 'Remaining', value: total - completed, color: '#9CA3AF' },
+      ]);
+      console.log("Total from allSubtopics.length:", total);
+      console.log("Total from response.count:", completed);
+    } catch (err) {
+      console.error('Failed to fetch progress metrics:', err);
+    }
+  };
 
 
 
@@ -81,21 +82,23 @@ console.log("Total from response.count:", completed);
   // For Breadcrumb
 
   useEffect(() => {
-  const fetchMainTopicDetails = async () => {
-    try {
-      const res = await axiosInstance.get(`topics/main-topic/${mainTopicId}/`);
-      const mainTopic = res.data;
-      setMainTopicTitle(mainTopic.title);
-      setCourseName(mainTopic.course_title); // assuming API includes `course_title`
-    } catch (err) {
-      console.error('Failed to fetch main topic details:', err);
-    }
-  };
+    const fetchMainTopicDetails = async () => {
+      try {
+        const res = await axiosInstance.get(`topics/main-topic/${mainTopicId}/`);
+        const mainTopic = res.data;
+        console.log("Main topic details: ", res.data)
+        setMainTopicTitle(mainTopic.title);
+        setCourseName(mainTopic.course_title);
+        setCourseId(mainTopic.course); // assuming API includes `course_title`
+      } catch (err) {
+        console.error('Failed to fetch main topic details:', err);
+      }
+    };
 
-  if (mainTopicId) {
-    fetchMainTopicDetails();
-  }
-}, [mainTopicId]);
+    if (mainTopicId) {
+      fetchMainTopicDetails();
+    }
+  }, [mainTopicId]);
 
 
   // === CRUD Actions ===
@@ -185,29 +188,41 @@ console.log("Total from response.count:", completed);
     }));
   };
 
-  
+
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-4">
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
-        {/* Breadcrumb */}
-<nav className="text-sm text-gray-500 mb-6">
-  {courseName && mainTopicTitle ? (
-    <>
-      My Courses / {courseName} / {mainTopicTitle} / Subtopics
-    </>
-  ) : (
-    'Loading...'
-  )}
-</nav>
+        <nav className="text-sm text-gray-500 mb-6">
+          {courseName && mainTopicTitle ? (
+            <>
+              <Link to="/learner/my-courses" className="text-blue-600 hover:underline">
+                My Courses
+              </Link>
+              {' / '}
+              <Link to="/learner/my-courses" className="text-blue-600 hover:underline">
+                {courseName}
+              </Link>
+              {' / '}
+              <Link to={`/learner/main-topics/${courseId}`} className="text-blue-600 hover:underline">
+                {mainTopicTitle}
+              </Link>
+              {' / '}
+
+              Subtopics
+            </>
+          ) : (
+            'Loading...'
+          )}
+        </nav>
 
 
         {/* Main Topic Header */}
         <div className="bg-[#4F46E5] text-white py-6 px-4 rounded-lg mb-6">
           <div className="flex items-center gap-3 mb-2">
             <BookOpen className="w-8 h-8" />
-           <h1 className="text-2xl font-bold">{mainTopicTitle || 'Loading...'}</h1>
+            <h1 className="text-2xl font-bold">{mainTopicTitle || 'Loading...'}</h1>
           </div>
           <p className="text-indigo-100">Track your progress by marking what you've learned</p>
         </div>
@@ -264,8 +279,8 @@ console.log("Total from response.count:", completed);
               <div
                 key={subtopic.id}
                 className={`flex items-center justify-between p-4 border rounded-lg transition-all ${subtopic.completed
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-white border-gray-200 hover:border-gray-300'
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-white border-gray-200 hover:border-gray-300'
                   }`}
               >
                 <div className="flex items-center gap-3">
@@ -313,11 +328,11 @@ console.log("Total from response.count:", completed);
             ))}
           </div>
 
-                <Pagination
-        page={page}
-        totalPages={Math.ceil(count / 10)}
-        onPageChange={handlePageChange}
-      />
+          <Pagination
+            page={page}
+            totalPages={Math.ceil(count / 10)}
+            onPageChange={handlePageChange}
+          />
         </div>
 
         {/* Progress Chart Section */}
@@ -356,11 +371,11 @@ console.log("Total from response.count:", completed);
             {/* Stats */}
             <div className="flex flex-col justify-center space-y-4">
               <div className="text-center lg:text-left">
-    <div className="text-3xl font-bold text-[#1E1B4B] mb-2">
-      {totalCount > 0
-        ? `${Math.round((completedCount / totalCount) * 100)}%`
-        : 'No progress yet'}
-    </div>
+                <div className="text-3xl font-bold text-[#1E1B4B] mb-2">
+                  {totalCount > 0
+                    ? `${Math.round((completedCount / totalCount) * 100)}%`
+                    : 'No progress yet'}
+                </div>
                 <div className="text-gray-600">Overall Progress</div>
               </div>
 
