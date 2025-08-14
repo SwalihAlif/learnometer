@@ -394,11 +394,12 @@ class SessionBookingViewSet(viewsets.ModelViewSet):
         session = self.get_object()
         if request.user != session.learner:
             return Response({"error": "Unauthorized."}, status=status.HTTP_403_FORBIDDEN)
-
-        session_datetime = datetime.combine(session.date, session.start_time)
-        if timezone.now() + timedelta(hours=12) > timezone.make_aware(session_datetime):
-            return Response({"error": "Cannot cancel less than 12 hours before session."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        
+        if session.status != SessionBooking.Status.PENDING:
+            session_datetime = datetime.combine(session.date, session.start_time)
+            if timezone.now() + timedelta(hours=12) > timezone.make_aware(session_datetime):
+                return Response({"error": "Cannot cancel less than 12 hours before session."},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         session.status = SessionBooking.Status.CANCELLED
         session.save()
