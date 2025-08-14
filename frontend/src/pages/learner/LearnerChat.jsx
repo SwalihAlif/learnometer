@@ -72,7 +72,7 @@ function LearnerChat() {
         const historyMessages = response.data.map(msg => ({
           type: (user && msg.sender.id === user.user_id) ? 'my' : 'other',
           text: msg.content,
-          sender: msg.sender.email,
+          sender: msg.sender.full_name,
           timestamp: msg.timestamp,
           isRead: msg.is_read, // <--- NEW: Include is_read from history
           readAt: msg.read_at, // <--- NEW: Include read_at from history
@@ -108,7 +108,7 @@ function LearnerChat() {
             setMessages((prev) => [...prev, {
                 type: messageType,
                 text: data.message,
-                sender: data.sender_email || 'Unknown',
+                sender: data.sender_full_name || 'Unknown',
                 timestamp: data.timestamp,
                 isRead: data.is_read || false,
                 readAt: data.read_at || null
@@ -132,13 +132,13 @@ function LearnerChat() {
                         return msg;
                     })
                 );
-                console.log(`Messages sent to ${data.reader_email} marked as read.`);
+                console.log(`Messages sent to ${data.reader_full_name} marked as read.`);
             }
         } else if (data.type === 'typing_status') { // <--- NEW: Handle 'typing_status' event
             // Only update typing status if it's from the other user
             if (user && data.sender_id !== user.user_id) {
                 if (data.is_typing) {
-                    setTypingUser({ id: data.sender_id, email: data.sender_email });
+                    setTypingUser({ id: data.sender_id, name: data.sender_full_name });
                 } else {
                     setTypingUser(null);
                 }
@@ -314,7 +314,7 @@ function LearnerChat() {
         {/* NEW: Typing Indicator */}
         {typingUser && (
             <div className="p-2 text-sm text-gray-600 italic text-center">
-                {typingUser.email} is typing...
+                {typingUser.name} is typing...
             </div>
         )}
 

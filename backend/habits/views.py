@@ -38,11 +38,17 @@ class MarkHabitDayCompleteView(APIView):
     def patch(self, request, habit_id, day_number):
         habit = get_object_or_404(Habit, id=habit_id, learner=request.user)
         progress = get_object_or_404(HabitProgress, habit=habit, day_number=day_number)
-        progress.is_completed = True
-        progress.completed_at = timezone.now()
+
+        is_completed = request.data.get('is_completed', True)
+        progress.is_completed = is_completed
+
+        if is_completed:
+            progress.completed_at = timezone.now()
+        else:
+            progress.completed_at = None
         progress.save()
-        return Response({'status': 'completed'}, status=status.HTTP_200_OK)
-    
+        return Response({'status': 'completed' if is_completed else 'unmarked'}, status=status.HTTP_200_OK)
+     
 class CompletedHabitsView(APIView):
     permission_classes = [IsAuthenticated]
 

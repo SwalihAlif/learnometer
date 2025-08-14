@@ -4,6 +4,7 @@ const getHabits = () => axiosInstance.get("habits/list-create/");
 const createHabit = (data) => axiosInstance.post("habits/list-create/", data);
 const getHabitProgress = (habitId) => axiosInstance.get(`habits/list/${habitId}/progress/`);
 const markDayComplete = (habitId, dayNumber) => axiosInstance.patch(`habits/complete/${habitId}/progress/${dayNumber}/`, { is_completed: true });
+const unmarkDayComplete  = (habitId, dayNumber) => axiosInstance.patch(`habits/complete/${habitId}/progress/${dayNumber}/`, { is_completed: false });
 const updateHabit = (habitId, data) => axiosInstance.patch(`habits/list-create/${habitId}/`, data);
 const deleteHabit = (habitId) => axiosInstance.delete(`habits/list-create/${habitId}/`);
 const getCompletedHabits = () => axiosInstance.get("habits/completed/")
@@ -16,6 +17,7 @@ const getCompletedHabits = () => axiosInstance.get("habits/completed/")
   createHabit,
   getHabitProgress,
   markDayComplete,
+  unmarkDayComplete,
   updateHabit,
   deleteHabit,
   getCompletedHabits,
