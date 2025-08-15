@@ -43,7 +43,7 @@ const PaymentAdminDashboard = () => {
                 search,
                 wallet_type: walletType,
                 transaction_type: transactionType,
-            };
+            }; 
 
             const response = await axiosInstance.get('premium/admin/payment/transactions/', { params });
             const transactions = response.data.results;

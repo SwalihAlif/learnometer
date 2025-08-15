@@ -532,7 +532,7 @@ class WalletTransactionReportListView(BaseReportListView):
     serializer_class = WalletTransactionSerializer
     search_fields = ['wallet__user__email', 'transaction_type', 'description']
     filterset_fields = ['transaction_type']
-    ordering_fields = ['timestamp', 'amount']
+    ordering_fields = ['timestamp', 'amount'] 
 
 # Add more list views for other models as needed following the pattern above.
 # Example for MotivationalBook:

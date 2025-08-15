@@ -107,6 +107,13 @@ const handleSeeAll = () => {
   setCurrentPage(1); // reset to first page
 };
 
+  const formatTransactionType = (type) => {
+  return type
+    .split('_')                // Split by underscore
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
+    .join(' ');                // Join with space
+};
+
 return (
   <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
     <div className="w-full max-w-md bg-gray-800 shadow-lg rounded-2xl p-6 space-y-6">
@@ -132,6 +139,13 @@ return (
           {/* Withdrawal History */}
           <div className="bg-gray-700 p-4 rounded-lg mt-4">
             <h4 className="text-lg font-semibold mb-2">Recent Transactions</h4>
+
+                              {/* Header Row */}
+          <div className="flex justify-between text-gray-300 text-sm font-semibold border-b border-gray-600 pb-1">
+            <span className="w-1/3">Date</span>
+            <span className="w-1/3">Amount</span>
+            <span className="w-1/3">Transaction Type</span>
+          </div>  
             <div className="max-h-48 overflow-y-auto space-y-2">
               {transactions.slice(0, 10).map((transaction, index) => (
                 <div key={index} className="flex justify-between items-center border-b border-gray-600 pb-1">
@@ -146,7 +160,7 @@ return (
                         : 'bg-red-500'
                     }`}
                   >
-                    {transaction.transaction_type}
+                      {formatTransactionType(transaction.transaction_type)}
                   </span>
                 </div>
               ))}
@@ -211,6 +225,13 @@ className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-no
       <h2 className="text-xl font-bold mb-4">All Transactions</h2>
 
       <div className="space-y-3">
+
+                        {/* Header Row */}
+  <div className="flex justify-between items-center border-b pb-2 text-sm font-semibold text-gray-600">
+    <span className="w-1/3">Date</span>
+    <span className="w-1/3">Amount</span>
+    <span className="w-1/3">Transaction Type</span>
+  </div>
         {transactions
           .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
           .map((transaction, index) => (
@@ -229,7 +250,7 @@ className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-no
                     : 'bg-red-500 text-white'
                 }`}
               >
-                {transaction.transaction_type}
+                  {formatTransactionType(transaction.transaction_type)}
               </span>
             </div>
           ))}
