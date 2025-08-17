@@ -127,7 +127,7 @@ const AdminWallet = () => {
 
         <div className="text-center">
           <p className="text-sm text-gray-400 mb-1">Total Wallet Balance</p>
-          <h3 className="text-4xl font-bold text-green-400">${parseFloat(walletBalance).toFixed(2)}</h3>
+          <h3 className="text-4xl font-bold text-green-400">₹{parseFloat(walletBalance).toFixed(2)}</h3>
         </div>
 
         {isStripeOnboarded ? (
@@ -161,7 +161,7 @@ const AdminWallet = () => {
             {transactions.slice(0, 10).map((transaction, index) => (
               <div key={index} className="flex justify-between items-center border-b border-gray-600 pb-1">
                 <span className="text-sm">{transaction.timestamp.slice(0, 10)}</span>
-                <span className="text-sm">${parseFloat(transaction.amount).toFixed(2)}</span>
+                <span className="text-sm">₹{parseFloat(transaction.amount).toFixed(2)}</span>
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${transaction.transaction_type === 'credit_referral'
                       ? 'bg-green-500'
@@ -243,7 +243,7 @@ const AdminWallet = () => {
                     className="flex justify-between items-center border-b pb-1 text-sm"
                   >
                     <span>{transaction.timestamp.slice(0, 10)}</span>
-                    <span>${parseFloat(transaction.amount).toFixed(2)}</span>
+                    <span>₹{parseFloat(transaction.amount).toFixed(2)}</span>
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${transaction.transaction_type === 'credit_referral'
                           ? 'bg-green-500 text-white'
