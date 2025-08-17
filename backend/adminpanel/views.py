@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAdminUser
 from django.contrib.auth import get_user_model
 from .serializers import LearnerUserSerializer
 from rest_framework.generics import ListAPIView
@@ -77,6 +78,42 @@ class QuestionListByMainTopic(ListAPIView):
     def get_queryset(self):
         main_topic_id = self.kwargs['main_topic_id']
         return Question.objects.filter(main_topic_id=main_topic_id)
+    
+# --------------------------------- Admin Courses and content
+from rest_framework.views import APIView
+from topics.services import get_answer_ai_generation_count, get_schedule_generation_count, get_quiz_generation_count
+
+class AdminCoursesAndContentMetrixView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, user_id):
+        try:
+            learner = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+        data = []
+        courses = Course.objects.filter(learner=learner)
+
+        for course in courses:
+            learner = course.learner
+            main_topics = MainTopic.objects.filter(course=course)
+            sub_topics = SubTopic.objects.filter(main_topic__course=course)
+            questions = Question.objects.filter(main_topic__course=course)
+
+            ai_answers = get_answer_ai_generation_count(learner)
+            ai_schedules = get_schedule_generation_count(learner)
+            ai_quizzes = get_quiz_generation_count(learner)
+
+            data.append({
+                'course': course.title,
+                'main_topics': main_topics.count(),
+                'sub_topics': sub_topics.count(),
+                'questions': questions.count(),
+                'ai_answers': ai_answers,
+                'ai_schedules': ai_schedules,
+                'ai_quizzes' : ai_quizzes
+            })
+        return Response(data)
     
 # ------------------------- Admin Session views
 class SessionBookingListAPIView(ListAPIView):
@@ -159,7 +196,6 @@ class AdminDashboardStatsAPIView(APIView):
 
 
 #------------------------------ Addding test balance for payoutssss -----------------------------------
-from rest_framework.permissions import IsAdminUser
 from . serializers import AddTestBalanceSerializer
 from django.conf import settings
 import stripe

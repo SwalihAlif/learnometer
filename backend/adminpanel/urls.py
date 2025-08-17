@@ -8,10 +8,6 @@ from .views import (
     MotivationalBookPublicViewSet,
     LearnerListView,
     CourseListByLearner,
-    MainTopicListByCourse,
-    SubTopicListByMainTopic,
-    ScheduleListByMainTopic,
-    QuestionListByMainTopic,
     SessionBookingListAPIView,
     FeedbackDetailView,
     ReviewDetailView,
@@ -27,7 +23,9 @@ from .views import (
 )
 # for report and cms
 from .views import (
-    UserReportListView, UserProfileReportListView, CourseReportListView,
+    UserReportListView, UserProfileReportListView, 
+    AdminCoursesAndContentMetrixView,
+    CourseReportListView,
     MainTopicReportListView, SubTopicReportListView, QuestionReportListView,
     AnswerReportListView, SessionBookingReportListView, ReviewReportListView,
     FeedbackReportListView, WalletTransactionReportListView, MotivationalBookReportListView,
@@ -49,10 +47,8 @@ urlpatterns = [
 
     path('learners/', LearnerListView.as_view(), name='admin-learners'),
     path('learner/<int:learner_id>/courses/', CourseListByLearner.as_view(), name='admin-courses-by-learner'),
-    path('course/<int:course_id>/main-topics/', MainTopicListByCourse.as_view(), name='admin-main-topics-by-course'),
-    path('main-topic/<int:main_topic_id>/subtopics/', SubTopicListByMainTopic.as_view(), name='admin-subtopics'),
-    path('main-topic/<int:main_topic_id>/schedules/', ScheduleListByMainTopic.as_view(), name='admin-schedules'),
-    path('main-topic/<int:main_topic_id>/questions/', QuestionListByMainTopic.as_view(), name='admin-questions'),
+    path('adminpanel/course-content-metrics/<int:user_id>/', AdminCoursesAndContentMetrixView.as_view(), name='course-content-metrics'),   
+
 
 #
     path('sessions/', SessionBookingListAPIView.as_view(), name='admin-sessions'),

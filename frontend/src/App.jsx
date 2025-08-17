@@ -52,11 +52,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageLearner from "./pages/admin/ManageLearner";
 import ManageMentors from "./pages/admin/ManageMentors";
 import AdminLearners from './pages/admin/CoursesEntry';
-import LearnerCourses from './pages/admin/LearnerCourses';
-import CourseMainTopics from './pages/admin/CourseMainTopics';
-import Subtopics from './pages/admin/Subtopics';
-import Schedules from './pages/admin/Schedules';
-import Questions from './pages/admin/Questions';
+import CourseContentMetrics from './pages/admin/CourseContentMetrics';
+
 import SessionsPage from './pages/admin/SessionsPage';
 import FeedbackModal from './pages/admin/FeedbackModal';
 import ReviewModal from './pages/admin/ReviewModal';
@@ -141,11 +138,8 @@ export default function App() {
               <Route path="learners" element={<ManageLearner />} />
               <Route path="mentors" element={<ManageMentors />} />
               <Route path="course-entry" element={<AdminLearners />} />
-              <Route path="courses/:learner_id" element={<LearnerCourses />} />
-              <Route path="main-topics/:course_id" element={<CourseMainTopics />} />
-              <Route path="sub-topics/:main_topic_id" element={<Subtopics />} />
-              <Route path="schedules/:main_topic_id" element={<Schedules />} />
-              <Route path="questions/:main_topic_id" element={<Questions />} />
+              <Route path="course-metrics/:learnerId" element={<CourseContentMetrics />} />
+
               <Route path="sessions" element={<SessionsPage />} />
               <Route path="sessions-feedbacks" element={<FeedbackModal />} />
               <Route path="sessions-reviews" element={<ReviewModal />} />

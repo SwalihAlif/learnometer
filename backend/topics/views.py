@@ -146,6 +146,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 import google.generativeai as genai
+from . services import log_answer_ai_generation, get_answer_ai_generation_count
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,9 @@ class GenerateAIAnswerView(APIView):
             )
             response = model.generate_content(prompt)
             logger.info(f"[AI SUCCESS] Answer generated for user '{user}' using Gemini")
+
+            log_answer_ai_generation(user, question_text, "Gemini")
+
             return Response({"ai_answer": response.text.strip(), "model": "Gemini"})
         except Exception as e:
             error_message = str(e)
@@ -192,6 +196,9 @@ class GenerateAIAnswerView(APIView):
                 )
                 text = cohere_response.generations[0].text.strip()
                 logger.info(f"[AI SUCCESS] Answer generated for user '{user}' using Cohere")
+
+                log_answer_ai_generation(user, question_text, "Cohere")
+
                 return Response({"ai_answer": text, "model": "Cohere"})
             except Exception as ce:
                 logger.error(
@@ -211,6 +218,7 @@ import google.generativeai as genai
 import cohere
 from .models import MainTopic, Schedule
 from .serializers import ScheduleSerializer
+from .services import log_schedule_ai_generation, get_schedule_generation_count
 
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 cohere_client = cohere.Client(settings.COHERE_API_KEY)
@@ -241,11 +249,13 @@ class GenerateLearningScheduleView(APIView):
             response = model.generate_content(prompt)
             output = re.search(r"(\{.*\})", response.text, re.DOTALL)
             data = json.loads(output.group(1)) if output else {}
+            log_schedule_ai_generation(user, "Gemini")
         except:
             try:
                 res = cohere_client.generate(model="command-r-plus", prompt=prompt, max_tokens=300)
                 output = re.search(r"(\{.*\})", res.generations[0].text, re.DOTALL)
                 data = json.loads(output.group(1)) if output else {}
+                log_schedule_ai_generation(user, "Cohere")
             except Exception as e:
                 return Response({"error": "AI failed", "details": str(e)}, status=500)
 
@@ -302,6 +312,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from topics.models import Question
+from .services import log_quiz_ai_generation, get_quiz_generation_count
 
 logger = logging.getLogger(__name__)
 
@@ -391,8 +402,10 @@ Reply ONLY in JSON format like this:
                     "question_id": question.id,
                     "question": question.question_text,
                     "options": options,
-                    "source": source_model
+                    "source": source_model  
                 })
+
+                log_quiz_ai_generation(user, source_model)
 
             except Exception as parse_error:
                 logger.error(f"[AI ERROR] Parsing failed for question '{question.question_text}': {parse_error}")

@@ -31,7 +31,7 @@ const AdminLearners = () => {
               <p className="text-xs text-gray-500">User Since: {new Date(l.created_at).toLocaleDateString()}</p>
             </div>
             <button
-              onClick={() => navigate(`/admin/courses/${l.id}`)}
+              onClick={() => navigate(`/admin/course-metrics/${l.id}`)}
               className="px-4 py-2 bg-[#4F46E5] text-white rounded-lg hover:bg-[#4338CA] transition"
             >
               View Courses
