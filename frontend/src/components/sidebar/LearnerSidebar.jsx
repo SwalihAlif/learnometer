@@ -26,7 +26,7 @@ const LearnerSidebar = () => {
     // { name: 'Progress', icon: Target, path: 'progress' },
     { name: 'Premium', icon: Crown, path: 'premium' },
     { name: 'Earnings', icon: Crown, path: 'earnings' },
-    { name: 'Messages', icon: MessageCircle, path: 'chat/general_chat_room' },
+    { name: 'Messages', icon: MessageCircle, path: 'chat-list' },
     { name: 'Downloads', icon: Download, path: 'downloads' }
   ];
 

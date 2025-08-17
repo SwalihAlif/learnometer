@@ -22,6 +22,7 @@ import Quiz from './pages/learner/Quiz';
 import MentorList from './pages/learner/MentorList';
 import BookSession from './pages/learner/BookSession';
 import LearnerMySessions from './pages/learner/LearnerMySessions';
+import LearnerChatList from './pages/learner/LearnerChatList';
 import LearnerChat from './pages/learner/LearnerChat';
 import LearnerVideoPage from './pages/learner/LearnerVideoPage';
 import PremiumSuccessPage from './pages/learner/PremiumSuccessPage';
@@ -100,6 +101,7 @@ export default function App() {
                 <Route path="all-mentors" element={<MentorList />} />
                 <Route path="book-session/:mentorId" element={<BookSession />} />
                 <Route path="my-sessions" element={<LearnerMySessions />} />
+                <Route path="chat-list" element={<LearnerChatList />} />
                 <Route path="chat/:mentorId" element={<LearnerChat />} />
                 <Route path="meet/:sessionId" element={<LearnerVideoPage />} />
                 <Route path="premium-success" element={<PremiumSuccessPage />} />
