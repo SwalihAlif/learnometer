@@ -66,6 +66,27 @@ class Schedule(models.Model):
     def __str__(self):
         return f"{self.topic.title} on {self.date}"
     
+
+from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class LearningSchedule(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='learning_schedules')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+class LearningScheduleItem(models.Model):
+    schedule = models.ForeignKey(LearningSchedule, on_delete=models.CASCADE, related_name='items')
+    slno = models.PositiveIntegerField()
+    course = models.CharField(max_length=255)
+    main_topic = models.CharField(max_length=255)
+    date = models.DateField()
+    day = models.CharField(max_length=20)
+    start_time = models.TimeField()
+    end_time = models.TimeField()   
+    
 class ScheduleGenerationEvent(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)

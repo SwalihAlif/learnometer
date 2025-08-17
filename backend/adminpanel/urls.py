@@ -47,7 +47,7 @@ urlpatterns = [
 
     path('learners/', LearnerListView.as_view(), name='admin-learners'),
     path('learner/<int:learner_id>/courses/', CourseListByLearner.as_view(), name='admin-courses-by-learner'),
-    path('adminpanel/course-content-metrics/<int:user_id>/', AdminCoursesAndContentMetrixView.as_view(), name='course-content-metrics'),   
+    path('course-content-metrics/<int:user_id>/', AdminCoursesAndContentMetrixView.as_view(), name='course-content-metrics'),   
 
 
 #

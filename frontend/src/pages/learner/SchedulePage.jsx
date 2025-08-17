@@ -7,37 +7,70 @@ const LearningSchedulePage = () => {
   const [schedule, setSchedule] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const fetchSchedule = async () => {
-    try {
-      const res = await axiosInstance.get('topics/schedule/');
-      setSchedule(res.data);
-    } catch (err) {
-      console.error('Failed to fetch schedule:', err);
-    }
+  // Helper to group schedule items by date
+  const groupByDate = (scheduleArr) => {
+    const grouped = {};
+    scheduleArr.forEach(item => {
+      if (!grouped[item.date]) grouped[item.date] = [];
+      grouped[item.date].push({
+        title: `${item.course} - ${item.main_topic}`,
+        start: item.start_time,
+        end: item.end_time,
+        ...item, // in case you want more props
+      });
+    });
+    return grouped;
   };
 
-  const generateSchedule = async () => {
+  const fetchSchedule = async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.post('topics/generate-schedule/');
-      // convert flat list to grouped
-      const grouped = {};
-      res.data.forEach(item => {
-        const date = item.date;
-        if (!grouped[date]) grouped[date] = [];
-        grouped[date].push({
-          title: item.topic_title || item.title,
-          start: item.start_time?.slice(0, 5),
-          end: item.end_time?.slice(0, 5),
-        });
-      });
+      const res = await axiosInstance.get("topics/schedule/");
+      // res.data.schedule is the array
+      const grouped = groupByDate(res.data.schedule || []);
       setSchedule(grouped);
     } catch (err) {
-      console.error('Error generating schedule:', err);
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch schedule:", err);
+      setSchedule({});
     }
+    setLoading(false);
   };
+
+  // const generateSchedule = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const res = await axiosInstance.post('topics/generate-schedule/');
+  //     await fetchSchedule();
+  //     // convert flat list to grouped
+  //     const grouped = {};
+  //     res.data.forEach(item => {
+  //       const date = item.date;
+  //       if (!grouped[date]) grouped[date] = [];
+  //       grouped[date].push({
+  //         title: item.topic_title || item.title,
+  //         start: item.start_time?.slice(0, 5),
+  //         end: item.end_time?.slice(0, 5),
+  //       });
+  //     });
+  //     setSchedule(grouped);
+  //   } catch (err) {
+  //     console.error('Error generating schedule:', err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const generateSchedule = async () => {
+  setLoading(true);
+  try {
+    await axiosInstance.post('topics/generate-schedule/');
+    await fetchSchedule(); // this will update the state with latest from backend
+  } catch (err) {
+    console.error('Error generating schedule:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const downloadPDF = () => {
     const doc = new jsPDF();
