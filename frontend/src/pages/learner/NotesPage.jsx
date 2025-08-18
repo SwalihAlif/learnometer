@@ -144,7 +144,7 @@ const NotesPage = () => {
     const openAiModal = (question) => {
         setSelectedQuestion(question);
         setAiText('');
-        setShowAiModal(true);
+        setShowAiModal(true); 
     };
 
     const handleGenerateAi = async () => {

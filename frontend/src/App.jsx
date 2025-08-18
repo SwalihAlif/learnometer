@@ -4,6 +4,7 @@ import Toast from "./components/common/Toast";
 import { Toaster } from 'react-hot-toast';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import { AuthProvider } from './contexts/AuthContext'; //import  context
+import GlobalLoader from './components/common/GlobalLoader';
 
 // Layouts
 import AdminLayout from "./layouts/AdminLayout";
@@ -170,6 +171,7 @@ export default function App() {
 
           <Toaster position="top-right" reverseOrder={false} />
           <ConfirmDialog />
+          <GlobalLoader />
           <Toast />
         </BrowserRouter>
       </AuthProvider>

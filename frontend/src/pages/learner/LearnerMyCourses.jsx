@@ -6,7 +6,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { showToast } from '../../redux/slices/toastSlice';
 import { showDialog } from '../../redux/slices/confirmDialogSlice';
 import { fetchPaginatedData } from '../../redux/slices/paginationSlice';
+import { showLoader, hideLoader } from '../../redux/slices/loaderSlice';
 import Pagination from '../../components/common/Pagination';
+import GlobalLoader from '../../components/common/GlobalLoader';
 
 
 const LearnerMyCourses = () => {
@@ -68,13 +70,15 @@ const LearnerMyCourses = () => {
     }));
   };
 
-  const handleCreateCourse = async () => {
-    if (newCourse.title && newCourse.category && newCourse.description) {
+const handleCreateCourse = async () => {
+  if (newCourse.title && newCourse.category && newCourse.description) {
+    dispatch(showLoader());
+    setTimeout(async () => {  
       try {
         const payload = {
           title: newCourse.title,
           description: newCourse.description,
-          category_name: newCourse.category.trim().toLowerCase(), // ✅ match serializer
+          category_name: newCourse.category.trim().toLowerCase(),
         };
 
         console.log("Sending:", payload);
@@ -94,11 +98,17 @@ const LearnerMyCourses = () => {
           console.error('Backend error response:', err.response.data);
         }
         dispatch(showToast({ message: 'Failed to create course.', type: 'error' }));
+      } finally {
+        dispatch(hideLoader());
       }
-    } else {
-      dispatch(showToast({ message: 'Please fill all fields.', type: 'error' }));
-    }
-  };
+    }, 1000);
+  } else {
+    dispatch(showToast({ message: 'Please fill all fields.', type: 'error' }));
+    dispatch(hideLoader());
+  }
+};
+
+
 
   const handleEditClick = (course) => {
     setEditingCourseId(course.id);
@@ -109,6 +119,8 @@ const LearnerMyCourses = () => {
   };
 
 const handleUpdateCourse = async (id) => {
+  dispatch(showLoader());
+   setTimeout(async () => {
   try {
     const course = courses.find(c => c.id === id);
     const categoryName = course?.category?.name || '';
@@ -130,7 +142,10 @@ const handleUpdateCourse = async (id) => {
       console.error('Backend response:', err.response.data);
     }
     dispatch(showToast({ message: 'Failed to update course', type: 'error' }));
-  }
+  } finally {
+      dispatch(hideLoader()); 
+    }
+    }, 1000);
 };
 
 
@@ -140,13 +155,19 @@ const handleDeleteCourse = (courseId) => {
   dispatch(showDialog({
     title: "Delete Course?",
     message: "Are you sure you want to permanently delete this course?",
-    onConfirm: async () => {
+    onConfirm: () => {
+      dispatch(showLoader());
+      setTimeout(async () => {
       try {
         await axiosInstance.delete(`courses/${courseId}/`);
         dispatch(fetchPaginatedData({ url: 'courses', page }));  // 🔁 Re-fetch updated data
       } catch (err) {
         console.error('Error deleting course:', err);
-      }
+      } finally {
+          dispatch(hideLoader());   
+        }
+
+      }, 1000);
     },
     onCancel: () => {
       console.log("Course delete cancelled");
@@ -168,6 +189,7 @@ const handleDeleteCourse = (courseId) => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
+      <GlobalLoader />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 bg-[#4F46E5] px-6 py-8 rounded-lg shadow-md">

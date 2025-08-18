@@ -7,6 +7,8 @@ import { showDialog } from '../../redux/slices/confirmDialogSlice'
 import { fetchPaginatedData } from '../../redux/slices/paginationSlice';
 import Pagination from '../../components/common/Pagination';
 import { Link } from 'react-router-dom';
+import { showLoader, hideLoader } from '../../redux/slices/loaderSlice';
+
 
 const MainTopics = () => {
   const navigate = useNavigate();
@@ -73,6 +75,10 @@ const handleAddTopic = async (e) => {
   e.preventDefault();
 
   if (newTopic.title.trim() && newTopic.description.trim()) {
+    dispatch(showLoader());
+    setTimeout( async () => {
+      
+    
     try {
       await axiosInstance.post('topics/main-topic/', {
         title: newTopic.title,
@@ -91,12 +97,20 @@ const handleAddTopic = async (e) => {
       setNewTopic({ title: '', description: '' });
     } catch (err) {
       console.error('Failed to create topic:', err);
+    } finally {
+      dispatch(hideLoader());
     }
+
+    }, 1000);
   }
 };
 
 
 const handleUpdateTopic = async () => {
+  dispatch(showLoader());
+  setTimeout( async () => {
+
+  
   try {
     const { id, title, description } = editModal;
 
@@ -117,7 +131,11 @@ const handleUpdateTopic = async () => {
     setEditModal({ visible: false, id: null, title: '', description: '' });
   } catch (err) {
     console.error('Failed to update topic:', err);
+  } finally {
+    dispatch(hideLoader()); 
   }
+
+  }, 1000);
 };
 
 
@@ -127,6 +145,10 @@ const handleDeleteTopic = (id) => {
     title: "Delete Main-Topic?",
     message: "Are you sure you want to permanently delete this main-topic?",
     onConfirm: async () => {
+      dispatch(showLoader());
+      setTimeout( async () => {
+
+     
       try {
         await axiosInstance.delete(`topics/main-topic/${id}/`);
 
@@ -138,13 +160,53 @@ const handleDeleteTopic = (id) => {
         }));
       } catch (err) {
         console.error('Failed to delete topic:', err);
+      } finally {
+        dispatch(hideLoader());
       }
+       }, 1000);
     },
     onCancel: () => {
       console.log("Topic delete cancelled");
     }
   }));
 };
+
+const HandleViewSubTopic = (topicId) => {
+  console.log("for subtopic clicked main topic id: ", topicId)
+  dispatch(showLoader());
+  setTimeout(() => {
+    dispatch(hideLoader());
+    navigate(`/learner/sub-topics/${topicId}`)
+  }, 1000)
+}
+
+const HandleViewNotes = (topicId) => {
+    console.log("for notes clicked main topic id: ", topicId)
+
+  dispatch(showLoader());
+  setTimeout(() => {
+    dispatch(hideLoader());
+    navigate(`/learner/main-topics/${topicId}/notes`)
+  }, 1000);
+}
+const HandleViewSchedule = (topicId) => {
+    console.log("for notes clicked main topic id: ", topicId)
+
+  dispatch(showLoader());
+  setTimeout(() => {
+    dispatch(hideLoader());
+    navigate('/learner/schedule')
+  }, 1000);
+}
+const HandleViewQuiz   = (topicId) => {
+    console.log("for notes clicked main topic id: ", topicId)
+
+  dispatch(showLoader());
+  setTimeout(() => {
+    dispatch(hideLoader());
+    navigate(`/learner/quiz/${topicId}`)
+  }, 1000);
+}
 
 
   return (
@@ -234,7 +296,7 @@ const handleDeleteTopic = (id) => {
 
               {/* Action Buttons Row 1 */}
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <button onClick={() => navigate(`/learner/sub-topics/${topic.id}`)}
+                <button onClick={() => HandleViewSubTopic(topic.id)}
                 className="flex items-center justify-center px-3 py-2 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-50 transition-colors duration-200">
                   <Eye className="w-4 h-4 mr-1" />
                   View Subtopics
@@ -258,11 +320,11 @@ const handleDeleteTopic = (id) => {
                   onClick={() => handleDeleteTopic(topic.id)}
                   className="flex items-center justify-center px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors duration-200"
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
+                  <Trash2 className="w-4 h-4 mr-1" /> 
                   Delete
                 </button>
                 <button 
-                onClick={() => navigate(`/learner/main-topics/${topic.id}/notes`)}
+                onClick={() => HandleViewNotes(topic.id)}
                 className="flex items-center justify-center px-3 py-2 text-sm font-medium text-yellow-600 border border-yellow-200 rounded-md hover:bg-yellow-50 transition-colors duration-200">
                   <FileText className="w-4 h-4 mr-1" />
                   Make Notes
@@ -272,13 +334,13 @@ const handleDeleteTopic = (id) => {
               {/* Action Buttons Row 2 */}
               <div className="grid grid-cols-2 gap-2">
                 <button 
-                  onClick={() => navigate(`/learner/quiz/${topic.id}`)}
+                  onClick={() => HandleViewQuiz(topic.id)}
                 className="flex items-center justify-center px-3 py-2 text-sm font-medium text-purple-600 border border-purple-200 rounded-md hover:bg-purple-50 transition-colors duration-200">
                   <Brain className="w-4 h-4 mr-1" />
                   Attend Quiz
                 </button>
                 <button
-                onClick={() => navigate('/learner/schedule')}
+                onClick={() => HandleViewSchedule()}
                 className="flex items-center justify-center px-3 py-2 text-sm font-medium text-emerald-600 border border-emerald-200 rounded-md hover:bg-emerald-50 transition-colors duration-200">
                   <Calendar className="w-4 h-4 mr-1" />
                   View Schedules

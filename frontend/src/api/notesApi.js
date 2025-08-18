@@ -4,6 +4,7 @@ import axiosInstance from '../axios';
 
 export const getQuestionsByTopic = async (topicId) => {
   const res = await axiosInstance.get(`topics/questions/?main_topic=${topicId}`);
+  console.log("Main topic related questions: ", res.data)
   return res.data;
 };
 

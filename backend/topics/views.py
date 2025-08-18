@@ -88,12 +88,17 @@ class QuestionListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        logger.info(f"Fetching questions for user: {user}")
-        return Question.objects.filter(created_by=user).order_by('-created_at')
+        main_topic_id = self.request.query_params.get('main_topic', None)
+        logger.info(f"Fetching questions for user: {user} and Main topic: {main_topic_id}")
+
+        queryset = Question.objects.filter(created_by=user)
+        if main_topic_id is not None:
+            queryset = queryset.filter(main_topic=main_topic_id)
+        return queryset.order_by('-created_at')
 
     def perform_create(self, serializer):
         user = self.request.user
-        logger.info(f"Creating new question by user: {user}")
+        logger.info(f"Creating new question by user: {user}")   
         serializer.save(created_by=user)
 
 class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
