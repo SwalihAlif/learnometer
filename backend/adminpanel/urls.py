@@ -19,6 +19,7 @@ from .views import (
     CheckStripeOnboardingStatus,
     AdminReviewViewSet,
     AdminAllReviewsViewSet,
+    UpdatePremiumPriceView,
 
 )
 # for report and cms
@@ -60,6 +61,7 @@ urlpatterns = [
     path("stripe/create/", CreateAdminPaymentAccountView.as_view(), name="admin-stripe-account-create"),
     path("stripe/onboarding-status/", CheckStripeOnboardingStatus.as_view(), name="admin-stripe-status"),
     path('admin/habit-report/', admin_habit_report, name='admin-habit-report'),
+    path('update-premium-price/', UpdatePremiumPriceView.as_view(), name="update-premium-price"),
 
 
 

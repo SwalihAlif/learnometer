@@ -56,6 +56,15 @@ class AdminReview(models.Model):
         verbose_name = "Admin Review"
         verbose_name_plural = "Admin Reviews"
 
+class SiteSettings(models.Model):
+    premium_price = models.DecimalField(max_digits=10, decimal_places=2, default=999.00)
+
+    def __str__(self):
+        return "Site Settings"
+    
+    class Meta:
+        verbose_name_plural = "Site Settings"
+
 
 
 

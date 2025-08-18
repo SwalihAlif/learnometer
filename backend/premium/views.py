@@ -14,6 +14,7 @@ from .models import Wallet, WalletTransaction
 from .serializers import WalletSerializer, WalletTransactionSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
+from adminpanel.utils import get_premium_price
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -162,13 +163,15 @@ class CreatePremiumCheckoutSessionView(APIView):
                     return Response({"error": "Referral code not found."}, status=400)
 
             # Build Session Data
-            session_data = {
+
+            price = int(get_premium_price() * 100)
+            session_data = {    
                 "payment_method_types": ['card'],
                 "mode": 'payment',
                 "line_items": [{
                     'price_data': {
                         'currency': 'inr',
-                        'unit_amount': int(settings.PREMIUM_PRICE * 100),  # Always cast to int for Stripe
+                        'unit_amount': price,  # Always cast to int for Stripe
                         'product_data': {
                             'name': "Learner Premium Subscription"
                         },
@@ -228,7 +231,16 @@ class CheckLearnerStripeOnboardingStatus(APIView):
 # ----------------------------
 # Learner Premium Status view
 # ----------------------------
-class LearnerPremiumStatusView(APIView):
+from adminpanel.utils import get_premium_price
+
+class GetPremiumPriceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        price = get_premium_price()
+        return Response({"premium_price": price})
+
+class   LearnerPremiumStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -243,7 +255,7 @@ class LearnerPremiumStatusView(APIView):
 
             return Response({
                 "is_active": subscription.is_active,
-                "referral_code": referral_code.code if referral_code else None
+                "referral_code": referral_code.code if referral_code else None,
             })
         except LearnerPremiumSubscription.DoesNotExist:
             logger.warning("Learner premium is_active=False and referral code is None")
@@ -469,7 +481,8 @@ class StandardResultsSetPagination(PageNumberPagination):
 class PremiumReferralSummaryAPIView(APIView):
     def get(self, request):
         total_subscribers = LearnerPremiumSubscription.objects.filter(is_active=True).count()
-        total_revenue = total_subscribers * 1000  # assuming ₹1000 per subscription
+        premium_price = get_premium_price()
+        total_revenue = total_subscribers * premium_price  # assuming ₹1000 per subscription
         total_referral_earnings = ReferralEarning.objects.aggregate(
             total=Sum('amount')
         )['total'] or 0

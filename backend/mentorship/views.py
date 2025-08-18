@@ -49,6 +49,7 @@ import json
 from .models import StripeAccount
 from premium.models import LearnerPayout, LearnerPremiumSubscription, ReferralCode, ReferralEarning
 from notification.utils import notify_admins_and_staff
+from adminpanel.utils import get_premium_price
 
 logger = logging.getLogger(__name__)
 
@@ -661,7 +662,8 @@ def handle_checkout_session_completed(session_data):
 
             if referrer.id != user_id and getattr(referrer, 'premium_subscription', None) and referrer.premium_subscription.is_active:
                 referral_used = True
-                earning_amount = settings.PREMIUM_PRICE * Decimal("0.30")
+                premium_price = get_premium_price()
+                earning_amount = premium_price * Decimal("0.30")
 
                 referral_earning = ReferralEarning.objects.create(
                     referrer=referrer,
@@ -689,7 +691,7 @@ def handle_checkout_session_completed(session_data):
         platform_wallet, _ = Wallet.objects.get_or_create(user=platform_user, wallet_type='platform_fees')
 
         platform_earning = (
-            settings.PREMIUM_PRICE * Decimal("0.70") if referral_used else Decimal(str(settings.PREMIUM_PRICE))
+            premium_price * Decimal("0.70") if referral_used else Decimal(str(premium_price))
         )
 
         platform_wallet.add_funds(

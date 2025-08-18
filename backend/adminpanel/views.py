@@ -826,3 +826,31 @@ def admin_habit_report(request):
     })
 
 
+# --------------------------------- Admin - Update Premium price ----------------------------------------------------
+from . models import SiteSettings
+from .  utils import get_premium_price
+
+class UpdatePremiumPriceView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        price = get_premium_price()
+        return Response({"success": True, "premium_price": price})
+
+    def post(self, request, *args, **kwargs):
+        logger.info(f"Received data: {request.data}")
+        price = request.data.get('premium_price')
+        logger.info(f"Price value: {price}, Type: {type(price)}")
+        settings_obj = SiteSettings.objects.first()
+        logger.info(f"Settings obj: {settings_obj}")
+
+        if not settings_obj:
+            settings_obj = SiteSettings.objects.create(premium_price=price)
+        else:
+            settings_obj.premium_price = price
+            settings_obj.save()
+            logger.info(f"Price is saved to db: {settings_obj.premium_price}")
+            return Response({"success": True, "premium_price": price})
+        logger.info(f"Price is not saved to db")
+        
+        return Response({"success": False}, status=400)

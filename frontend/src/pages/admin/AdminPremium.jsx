@@ -16,6 +16,11 @@ const AdminPremiumAndReferral = () => {
     const [subscriptionPagination, setSubscriptionPagination] = useState({});
     const [referralPagination, setReferralPagination] = useState({});
 
+    const [premiumPrice, setPremiumPrice] = useState(0);
+const [priceEditMode, setPriceEditMode] = useState(false);
+const [priceLoading, setPriceLoading] = useState(false);
+const [priceInput, setPriceInput] = useState("");
+
 
 
     useEffect(() => {
@@ -58,6 +63,37 @@ const fetchData = async () => {
   }
 };
 
+useEffect(() => {
+  fetchPremiumPrice();
+}, []);
+
+const fetchPremiumPrice = async () => {
+  try {
+    const res = await axiosInstance.get('adminpanel/update-premium-price/');
+    setPremiumPrice(res.data.premium_price);
+  } catch (err) {
+    // handle error optionally
+  }
+};
+
+const handlePriceChange = async () => {
+  if (!priceInput || isNaN(priceInput)) return;
+  setPriceLoading(true);
+  try {
+    const res = await axiosInstance.post(
+      'adminpanel/update-premium-price/', 
+      { premium_price: parseInt(priceInput) }
+    );
+    setPremiumPrice(res.data.premium_price);
+    setPriceEditMode(false);
+    setPriceInput("");
+  } catch (err) {
+    // handle error optionally
+  } finally {
+    setPriceLoading(false);
+  }
+};
+
 
 const handleSearch = (query) => {
   setSearchQuery(query.trim());
@@ -91,6 +127,63 @@ const handleSearch = (query) => {
             </div>
         </div>
     );
+
+    const UpdatePremiumPriceCard = () => (
+  <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col justify-between">
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center space-x-2">
+       <span className="h-8 w-8 text-yellow-400 text-2xl">₹</span>
+          <span className="text-gray-400 text-sm font-medium">Premium Price</span>
+        </div>
+        {/* Edit button */}
+        {!priceEditMode && (
+          <button 
+            className="text-yellow-400 hover:underline text-xs ml-2"
+            onClick={() => {
+              setPriceEditMode(true);
+              setPriceInput(premiumPrice);
+            }}
+          >
+            Edit
+          </button>
+        )}
+      </div>
+      <div className="mt-2">
+        {!priceEditMode ? (
+          <p className="text-2xl font-bold text-yellow-400">{formatCurrency(premiumPrice)}</p>
+        ) : (
+          <div className="flex flex-col items-start space-y-2">
+            <input
+              type="number"
+              value={priceInput}
+              onChange={e => setPriceInput(e.target.value)}
+              className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none"
+              min={10}
+            />
+            <div className="flex space-x-2">
+              <button
+                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold px-3 py-1 rounded disabled:opacity-50"
+                disabled={priceLoading}
+                onClick={handlePriceChange}
+              >
+                {priceLoading ? <Loader2 className="animate-spin h-4 w-4" /> : "Save"}
+              </button>
+              <button
+                className="bg-gray-700 text-gray-300 px-3 py-1 rounded hover:bg-gray-600"
+                onClick={() => setPriceEditMode(false)}
+                disabled={priceLoading}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 
     const SearchBar = ({ onSearch, placeholder }) => (
         <div className="relative">
@@ -366,6 +459,7 @@ const handleSearch = (query) => {
                                 icon={TrendingUp}
                                 color="text-green-400"
                             />
+                            <UpdatePremiumPriceCard />
                         </div>
 
                         {/* Tables */}

@@ -10,6 +10,7 @@ export default function LearnerPremiumPage() {
   const [referralCode, setReferralCode] = useState("");
   const [inputReferralCode, setInputReferralCode] = useState("");
   const [isStripeOnboarded, setIsStripeOnboarded] = useState(false);
+  const [premiumPrice, setPremiumPrice] = useState(1000)
 
 
 
@@ -19,7 +20,9 @@ export default function LearnerPremiumPage() {
         const res = await axiosInstance.get("premium/learner/premium/status/");
         setIsActive(res.data.is_active);
         console.log("is active: ", res.data.is_active)
+        
         setReferralCode(res.data.referral_code);
+        
         console.log("Referral code: ", res.data.referral_code)
       } catch (err) {
         console.error(err);
@@ -28,6 +31,22 @@ export default function LearnerPremiumPage() {
     };
     fetchStatus();
   }, []);
+
+  useEffect(() => {
+    const fetchPremiumPrice = async () => {
+
+      try {
+
+        const res = await axiosInstance.get("premium/learner/premium/price/");
+        console.log("Premium price: ", res.data)
+        setPremiumPrice(res.data.premium_price)
+      } catch (err) {
+        console.error(err)
+      }
+
+    };
+    fetchPremiumPrice();
+  }, [])
 
   useEffect(() => {
     const fetchStripeStatus = async () => {
@@ -196,7 +215,7 @@ export default function LearnerPremiumPage() {
 
           <div className="bg-gray-50 rounded-xl p-4 mb-6">
             <p className="text-sm font-medium text-gray-500">One-Time Payment</p>
-            <p className="text-3xl font-bold text-indigo-950">₹1000</p>
+            <p className="text-3xl font-bold text-indigo-950">₹{premiumPrice}</p>
           </div>
 
           {/* Referral Input */}

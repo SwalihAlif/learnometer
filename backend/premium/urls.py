@@ -3,6 +3,7 @@ from .views import CreatePremiumCheckoutSessionView, LearnerPremiumStatusView
 from .views import (
     CreatePremiumCheckoutSessionView,
     LearnerPremiumStatusView,
+    GetPremiumPriceView,
     LearnerReferralEarningsView,
     LearnerReferralPayoutView,
     WalletAPIView,
@@ -25,6 +26,7 @@ from .views import (
 urlpatterns = [
     path("learner/create-premium-checkout/", CreatePremiumCheckoutSessionView.as_view()),
     path("learner/premium/status/", LearnerPremiumStatusView.as_view(), name="learner-premium-status" ),
+    path("learner/premium/price/", GetPremiumPriceView.as_view(), name="learner-premium-price" ),
     path("learner/earnings/", LearnerReferralEarningsView.as_view(), name="learner-earnings"),
     path("learner/payout/", LearnerReferralPayoutView.as_view(), name="learner-payout"),
     path("wallet/", WalletAPIView.as_view(), name="user-wallet"),
