@@ -201,7 +201,7 @@ const loginWithGoogle = useGoogleLogin({
       console.log("✅ Backend login successful. Response:", res.data);
 
       // Step 4: Redirect based on role
-      navigate(res.data.role === 'Mentor' ? '/mentor' : '/learner');
+      navigate(res.data.role === 'Learner' ? '/learner' : '/mentor');
     } catch (error) {
       console.error("❌ Login failed:", error.response?.data || error.message);
       alert("Google SSO login failed. Please try again.");

@@ -194,7 +194,7 @@ const loginWithGoogle = useGoogleLogin({
       const res = await axiosInstance.post('users/login/google/', {
         email,
         full_name: name,
-        role: 'Learner', // 🔁 you can make this dynamic if needed
+        role: 'Mentor', // 🔁 you can make this dynamic if needed
       });
 
       console.log("✅ Backend login successful. Response:", res.data);

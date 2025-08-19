@@ -184,12 +184,14 @@ class GoogleLoginView(APIView):
         logger.info(f"Incoming SSO request data: {request.data}")
 
         role_input = request.data.get('role')
+        logger.info(f"Role input in sso: {role_input}")
 
         if not role_input:
             return Response({'error': 'Role is required'}, status=400)
 
         try:
             role_obj = Role.objects.get(name=role_input)
+            logger.info(f"ROLE OBJ: {role_obj}")
         except Role.DoesNotExist:
             logger.error("Role not found")
             return Response({'error': 'Invalid role'}, status=400)
@@ -215,31 +217,67 @@ class GoogleLoginView(APIView):
                 return Response({'error': 'Invalid token'}, status=400)
 
         else:
-            # ✅ 2. Fallback: use email + full_name directly (access_token flow)
+            # 2. Fallback: use email + full_name directly (access_token flow)
             email = request.data.get('email')
             full_name = request.data.get('full_name', '')
 
             if not email:
                 return Response({'error': 'Email is required'}, status=400)
 
-        # ✅ Common part: register or login user
+        # Common part: register or login user
         try:
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={'role': role_obj}
             )
 
+            user.is_active = True
+            user.save()
+
             if created:
                 UserProfile.objects.create(user=user, full_name=full_name)
 
             refresh = RefreshToken.for_user(user)
+            logger.info(f"Refresh tocken: {refresh} for the user: {user}")
 
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+
+            logger.info(f"access token: {access_token}")
+            logger.info(f"refresh token: {refresh_token}")
+
+            response = Response({
+                'message': 'successfully logged in by sso',
                 'email': user.email,
                 'role': user.role.name
-            })
+                })
+
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/",
+                max_age=1800,
+            )
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                httponly=True,
+                secure=not settings.DEBUG,
+                samesite="Lax",
+                path="/",
+                max_age=86400,
+            )
+
+            return response
+            # return Response({
+            #     'access': str(refresh.access_token),
+            #     'refresh': str(refresh),
+            #     'email': user.email,
+            #     'role': user.role.name
+            # })
 
         except Exception as e:
             logger.exception("SSO error")

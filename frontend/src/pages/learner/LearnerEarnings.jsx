@@ -117,8 +117,8 @@ const handleSeeAll = () => {
 
 
 return (
-  <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
-    <div className="w-full max-w-md bg-gray-800 shadow-lg rounded-2xl p-6 space-y-6">
+  <div className="min-h-screen bg-indigo-50 text-white flex items-center justify-center p-4">
+    <div className="w-full max-w-md bg-indigo-800 shadow-lg rounded-2xl p-6 space-y-6">
       <div className="flex items-center space-x-3">
         <FaWallet className="text-yellow-400 text-3xl" />
         <h2 className="text-2xl font-bold">Learner Wallet</h2>
@@ -216,7 +216,7 @@ className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-no
 
 {showAllTransactionsModal && (
   <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center">
-    <div className="bg-white text-black rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6 relative">
+    <div className="bg-purple-200 text-black rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6 relative">
       <button
         className="absolute top-2 right-4 text-gray-500 hover:text-red-600 text-xl"
         onClick={() => setShowAllTransactionsModal(false)}
