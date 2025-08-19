@@ -38,6 +38,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
     is_premium = models.BooleanField(default=False)
 
+    last_password_reset = models.DateTimeField(null=True, blank=True)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 

@@ -527,9 +527,30 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import get_user_model
-from .utils import send_otp_email  # your utility function
+from .utils import send_otp_email
 
 User = get_user_model()
+
+"""
+By default, Django's PasswordResetTokenGenerator is stateless, meaning it generates 
+a token based on user data (like last login, password hash, etc.)—but it doesn't track usage. '
+'So unless something changes in the user's state, the token remains valid. 
+Modifying the user's state after a successful password reset so the token becomes invalid.
+"""
+
+
+class OneTimeUseTokenGenerator(PasswordResetTokenGenerator):
+    def _make_hash_value(self, user, timestamp):
+        reset_time = user.last_password_reset or ""
+        hash_value = f"{user.pk}{timestamp}{user.password}{reset_time}"
+        
+        logger.debug(f"Generating token hash with: pk={user.pk}, timestamp={timestamp}, password={user.password}, reset_time={reset_time}")
+        logger.debug(f"Hash value: {hash_value}")
+        
+        return hash_value
+
+
+token_generator = OneTimeUseTokenGenerator()
 
 class ForgotPasswordView(APIView):
     def post(self, request):
@@ -537,7 +558,7 @@ class ForgotPasswordView(APIView):
         user = User.objects.filter(email=email).first()
 
         if user:
-            token = PasswordResetTokenGenerator().make_token(user)
+            token = token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             reset_link = f"http://localhost:5173/reset-password/{uid}/{token}/"
 
@@ -567,8 +588,9 @@ class PasswordResetConfirmView(APIView):
         try:
             uid = urlsafe_base64_decode(uidb64).decode()
             user = User.objects.get(pk=uid)
-            if PasswordResetTokenGenerator().check_token(user, token):
+            if token_generator.check_token(user, token):
                 user.set_password(password)
+                user.last_password_reset = timezone.now()
                 user.save()
                 return Response({"message": "Password reset successfully."}, status=200)
             else:
