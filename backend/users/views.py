@@ -612,3 +612,106 @@ class CheckAuthView(APIView):
     def get(self, request):
         return Response({'detail': 'authenticated'}, status=200)
 
+#--------------------------------- Learner dashboard view------------------------------------------------------------------------------------------
+import logging
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .serializers import LearnerDashboardMetricsSerializer
+from premium.models import ReferralEarning
+from mentorship.models import SessionBooking
+from django.db.models import Sum, Avg
+
+logger = logging.getLogger(__name__)
+
+class LearnerDashboardMetricsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        logger.debug(f"Fetching dashboard metrics for user: {user.id} - {user.email}")
+
+        total_courses = user.courses.count()
+        topics = user.main_topics.count()
+        subtopics = user.subtopics.count()
+        subtopics_completed = user.subtopics.filter(completed=True).count()
+
+        logger.debug(f"Counts - total_courses: {total_courses}, topics: {topics}, subtopics: {subtopics}, subtopics_completed: {subtopics_completed}")
+
+        if subtopics > 0:
+            progress = int((subtopics_completed / subtopics) * 100)
+        else:
+            progress = 0
+        
+        logger.debug(f"Calculated progress: {progress}%")
+
+        referral_earnings = ReferralEarning.objects.filter(referrer=user).aggregate(total_earnings=Sum('amount'))['total_earnings'] or 0.0
+        total_spent = SessionBooking.objects.filter(
+                                                    learner=user,
+                                                    payment_status=SessionBooking.PaymentStatus.RELEASED
+                                                ).aggregate(total_spent=Sum('amount'))['total_spent'] or 0.0
+
+        logger.debug(f"Refferral earning: {referral_earnings} - Total spent: {total_spent}")
+        data = {
+            "courses_created": total_courses,
+            "topics": topics,
+            "subtopics": subtopics,
+            "progress": progress,
+            "referral_earnings": referral_earnings or 0.0,
+            "total_spent": total_spent or 0.0,
+        }
+
+        serializer = LearnerDashboardMetricsSerializer(instance=data)
+        logger.debug(f"Serialized data: {serializer.data}")
+
+        return Response(serializer.data)
+
+#------------------------------------------------ Mentor Metrics view ---------------------------------------------------
+from django.utils import timezone
+from mentorship.models import Review
+
+
+class MentorDashBoardMetricsView(APIView):
+    def get(self, request):
+        mentor = request.user  # Assumes mentor is authenticated
+
+        # Total sessions conducted
+        total_sessions = SessionBooking.objects.filter(
+            mentor=mentor,
+            status=SessionBooking.Status.COMPLETED
+        ).count()
+
+        # Total unique learners mentored
+        total_learners = SessionBooking.objects.filter(
+            mentor=mentor,
+            status=SessionBooking.Status.COMPLETED
+        ).values('learner').distinct().count()
+
+        # Upcoming sessions
+        upcoming_sessions = SessionBooking.objects.filter(
+            mentor=mentor,
+            date__gte=timezone.now().date(),
+            status__in=[
+                SessionBooking.Status.PENDING,
+                SessionBooking.Status.CONFIRMED
+            ]
+        ).count()
+
+        # Total earnings (released payments only)
+        total_earnings = SessionBooking.objects.filter(
+            mentor=mentor,
+            payment_status=SessionBooking.PaymentStatus.RELEASED
+        ).aggregate(total=Sum('mentor_payout'))['total'] or 0.0
+
+        average_rating = Review.objects.filter(reviewee=mentor).aggregate(avg=Avg('rating'))['avg']
+        average_rating = round(average_rating, 2) if average_rating else 0.0
+
+        return Response({
+            'total_sessions_conducted': total_sessions,
+            'total_learners_mentored': total_learners,
+            'upcoming_sessions': upcoming_sessions,
+            'total_earnings': float(total_earnings),
+            'average_rating': average_rating,
+        })
+

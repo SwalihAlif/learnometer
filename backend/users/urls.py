@@ -12,6 +12,8 @@ from users.views import (
     ForgotPasswordView, 
     CategoryListView,
     CheckAuthView,
+    LearnerDashboardMetricsView,
+    MentorDashBoardMetricsView,
 )
 from .views import (
     AdminLearnerListCreateView,
@@ -43,12 +45,15 @@ urlpatterns = [
 
     path('check-auth/', CheckAuthView.as_view()),
     
-    
     # admin
     path("admin/learners/", AdminLearnerListCreateView.as_view(), name="admin-learner-list-create"),
     path("admin/learners/<int:pk>/", AdminLearnerRetrieveUpdateDeleteView.as_view(), name="admin-learner-detail"),
 
     path('admin/mentors/', AdminMentorListCreateView.as_view(), name='admin-mentor-list-create'),
     path('admin/mentors/<int:pk>/', AdminMentorRetrieveUpdateDeleteView.as_view(), name='admin-mentor-detail'),
+
+    # learner & mentor dashboard 
+    path('learner-dash/', LearnerDashboardMetricsView.as_view(), name='learner-dash'),
+    path('mentor-dash/', MentorDashBoardMetricsView.as_view(), name='mentor-dash'),
 ]
  

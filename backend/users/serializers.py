@@ -261,5 +261,11 @@ class AdminMentorCRUDSerializer(serializers.ModelSerializer):
         return instance
 
 
-
+class LearnerDashboardMetricsSerializer(serializers.Serializer):
+    courses_created = serializers.IntegerField()
+    topics = serializers.IntegerField()
+    subtopics = serializers.IntegerField()
+    progress = serializers.IntegerField()
+    total_spent = serializers.FloatField(required=False)
+    referral_earnings = serializers.FloatField(required=False)
 

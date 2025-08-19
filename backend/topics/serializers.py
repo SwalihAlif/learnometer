@@ -14,9 +14,10 @@ class MainTopicSerializer(serializers.ModelSerializer):
 # serializers.py
 
 class SubTopicSerializer(serializers.ModelSerializer):
+    created_by = serializers.StringRelatedField(read_only=True)
     class Meta:
         model = SubTopic
-        fields = ['id', 'main_topic', 'title', 'description', 'created_at', 'completed']
+        fields = ['id', 'main_topic', 'title', 'description', 'created_at', 'completed', 'created_by']
 
 
 

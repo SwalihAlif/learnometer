@@ -49,7 +49,7 @@ const NotificationBell = () => {
 
       ws.onerror = (error) => {
         console.error("[WebSocket] Error:", error);
-        toast.error("WebSocket connection error.");
+        // toast.error("WebSocket connection error.");
       };
 
       ws.onclose = (event) => {

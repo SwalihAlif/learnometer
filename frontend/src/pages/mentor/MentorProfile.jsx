@@ -587,7 +587,7 @@ const handleSave = async () => {
             </div>
 
             {/* Availability Schedule */}
-            <div>
+            {/* <div>
               <label className="block text-sm font-semibold text-emerald-800 mb-4">
                 <Clock size={16} className="inline mr-2" />
                 Availability Schedule
@@ -635,7 +635,7 @@ const handleSave = async () => {
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
 
             {/* Save Button */}
             <div className="flex justify-center pt-6">

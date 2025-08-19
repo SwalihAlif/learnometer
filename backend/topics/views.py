@@ -41,7 +41,7 @@ class SubTopicListCreateView(generics.ListCreateAPIView):
         return SubTopic.objects.filter(main_topic_id=main_topic_id)
 
     def perform_create(self, serializer):
-        serializer.save()
+        serializer.save(created_by=self.request.user)
 
 # Retrieve + Update + Delete
 class SubTopicDetailView(generics.RetrieveUpdateDestroyAPIView):
