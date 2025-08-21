@@ -279,6 +279,13 @@ def handle_mentor_session_booking(request):
         status=SessionBooking.Status.PENDING,
     )
     logger.info(f"Session booking created successfully: ID {booking.id}")
+    MentorAvailability.objects.filter(
+        mentor=mentor,
+        date = date,
+        start_time=start_time,
+        end_time=end_time,
+        session_price=amount
+    ).update(is_booked=True)
     try:
         stripe.PaymentIntent.modify(
             intent.id,
@@ -404,6 +411,14 @@ class SessionBookingViewSet(viewsets.ModelViewSet):
 
         session.status = SessionBooking.Status.CANCELLED
         session.save()
+        MentorAvailability.objects.filter(
+            mentor=session.mentor,
+            date = session.date,
+            start_time=session.start_time,
+            end_time=session.end_time,
+            session_price=session.amount
+
+        ).update(is_booked=False)
         return Response({"message": "Session cancelled successfully."})
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])

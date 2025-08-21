@@ -42,6 +42,17 @@ class SignalingConsumer(WebsocketConsumer):
                         'type': 'session_completed'
                     }
                 )
+            elif data.get("type") == "participant-joined":
+                async_to_sync(self.channel_layer.group_send)(
+                    self.room_group_name,
+                    {
+                        'type': 'signal_message',
+                        'message': {
+                            'type': 'participant-joined',
+                            'role': data.get('role')
+                        }
+                    }
+                )
             else:
                 async_to_sync(self.channel_layer.group_send)(
                     self.room_group_name,

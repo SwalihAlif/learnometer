@@ -66,7 +66,6 @@ class SessionBooking(models.Model):
     is_payment_captured = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ('mentor', 'date', 'start_time')
         ordering = ['-created_at']
 
     def __str__(self):

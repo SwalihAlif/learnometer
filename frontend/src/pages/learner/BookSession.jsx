@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../../axios";
 import Calendar from "react-calendar";
@@ -17,6 +17,10 @@ const BookMentorSession = () => {
   const [slots, setSlots] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const [cardComplete, setCardComplete] = useState(false);
+  const cardRef = useRef(null);
+
   const SLOTS_PER_PAGE = 5;
 
   const stripe = useStripe();
@@ -49,6 +53,7 @@ const BookMentorSession = () => {
     try {
       const res = await axiosInstance.get(`mentorship/availability/?mentor=${mentorId}&date=${isoDate}`);
       const allSlots = res.data?.results || res.data;
+      console.log("All Slots: ", allSlots )
 
       const now = new Date();
       const futureSlots = allSlots.filter(slot => {
@@ -57,6 +62,7 @@ const BookMentorSession = () => {
       });
 
       if (futureSlots.length === 0) toast("No upcoming slots for selected date.");
+      console.log("Future slots: ", futureSlots)
       setSlots(futureSlots);
       setCurrentPage(1); // reset pagination
     } catch (error) {
@@ -82,6 +88,14 @@ const BookMentorSession = () => {
       return;
     }
 
+    if (!cardComplete) {
+      if (cardRef.current) {
+        cardRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+      toast.error('Please fill in your card details!');
+      return;
+    }
+
     const now = new Date();
     const slotStart = new Date(`${slot.date}T${slot.start_time}`);
     if (isBefore(slotStart, now)) {
@@ -97,7 +111,7 @@ const BookMentorSession = () => {
         start_time: slot.start_time,
         end_time: slot.end_time,
         amount: slot.session_price || 500.0,
-      };
+      }; 
 
       console.log("Slot amount:", slot.session_price);
 
@@ -386,9 +400,12 @@ const BookMentorSession = () => {
 
 
                     {/* Stripe card */}
-                    <div className="mt-6 border rounded-md p-4">
+                    <div className="mt-6 border rounded-md p-4" ref={cardRef}>
                       <h3 className="text-lg font-bold mb-2">Enter your card details</h3>
-                      <CardElement className="p-2 border rounded-md" />
+                      <CardElement 
+                      className="p-2 border rounded-md"
+                      onChange={e => setCardComplete(e.complete)}
+                      />
                     </div>
 
 
